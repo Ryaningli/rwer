@@ -1,5 +1,7 @@
 # rwer
 
+**English** | [简体中文](README.zh-CN.md)
+
 A modern Rust crate for Word Error Rate (WER), Character Error Rate (CER), and related ASR evaluation metrics.
 
 ## Features

@@ -1,5 +1,7 @@
 # rwer
 
+[English](README.md) | **简体中文**
+
 一个现代化的 Rust 词错率/字错率及 ASR 评估指标计算库。
 
 ## 功能特性
