@@ -1,0 +1,40 @@
+[package]
+name = "rwer"
+version = "0.1.0"
+edition = "2024"
+description = "A modern Rust crate for WER, CER, and related ASR evaluation metrics"
+license = "MIT"
+keywords = ["wer", "cer", "asr", "evaluation", "nlp"]
+categories = ["text-processing", "science"]
+
+[lib]
+name = "rwer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "rwer"
+path = "src/bin/rwer.rs"
+required-features = ["cli"]
+
+[features]
+default = ["chinese-word"]
+chinese-word = ["dep:jieba-rs"]
+cli = ["dep:clap", "dep:serde", "dep:serde_json"]
+
+[dependencies]
+unicode-segmentation = "1.13"
+jieba-rs = { version = "0.9", optional = true }
+clap = { version = "4", features = ["derive"], optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+
+[dev-dependencies]
+rstest = "0.26"
+criterion = "0.8"
+
+[[bench]]
+name = "benchmark"
+harness = false
+
+[profile.test]
+opt-level = 1
