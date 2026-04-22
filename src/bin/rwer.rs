@@ -42,10 +42,29 @@ struct Cli {
     #[arg(short = 'z', long)]
     #[cfg(feature = "chinese-word")]
     chinese: bool,
+
+    /// Convert Traditional Chinese to Simplified Chinese before evaluation (requires 'chinese-variant' feature)
+    #[arg(long)]
+    #[cfg(feature = "chinese-variant")]
+    to_simplified: bool,
+
+    /// Convert Simplified Chinese to Traditional Chinese before evaluation (requires 'chinese-variant' feature)
+    #[arg(long)]
+    #[cfg(feature = "chinese-variant")]
+    to_traditional: bool,
 }
 
 fn build_pipeline(cli: &Cli) -> Option<Box<dyn Transform>> {
     let mut transforms: Vec<Box<dyn Transform>> = Vec::new();
+
+    #[cfg(feature = "chinese-variant")]
+    if cli.to_simplified {
+        transforms.push(Box::new(rwer::ToSimplified));
+    }
+    #[cfg(feature = "chinese-variant")]
+    if cli.to_traditional {
+        transforms.push(Box::new(rwer::ToTraditional));
+    }
 
     if cli.lowercase {
         transforms.push(Box::new(Strip));
