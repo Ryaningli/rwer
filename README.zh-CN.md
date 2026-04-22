@@ -160,6 +160,11 @@ println!("删除: {:?}", errors.deletions);
 cargo bench
 ```
 
+## 致谢
+
+- [jiwer](https://github.com/jitsi/jiwer) — WER/CER 指标的 API 设计和架构参考
+- [jieba-rs](https://github.com/messense/jieba-rs) — 中文分词
+
 ## 许可证
 
 基于 [MIT](LICENSE-MIT) 许可协议。

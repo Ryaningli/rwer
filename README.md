@@ -160,6 +160,11 @@ println!("Deletions: {:?}", errors.deletions);
 cargo bench
 ```
 
+## Acknowledgments
+
+- [jiwer](https://github.com/jitsi/jiwer) — API design and architecture reference for WER/CER metrics
+- [jieba-rs](https://github.com/messense/jieba-rs) — Chinese word segmentation
+
 ## License
 
 Licensed under [MIT](LICENSE-MIT).
