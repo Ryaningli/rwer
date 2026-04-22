@@ -41,6 +41,7 @@
 //! ## Feature Flags
 //!
 //! - `chinese-word` — Enable Chinese word segmentation using jieba-rs
+//! - `chinese-variant` — Enable Traditional/Simplified Chinese conversion using zhconv
 //! - `cli` — Enable the CLI binary
 
 #![forbid(unsafe_code)]
@@ -69,6 +70,9 @@ pub mod prelude {
     pub use crate::metrics::{cer, mer, wer, wil, wip};
     pub use crate::output::{AlignmentOutput, ErrorCounts, visualize_alignment};
     pub use crate::transform::{Compose, ToLower, Transform};
+
+    #[cfg(feature = "chinese-variant")]
+    pub use crate::transform::{ToSimplified, ToTraditional};
 }
 
 // Re-export main API items
@@ -84,3 +88,6 @@ pub use crate::transform::{
 
 #[cfg(feature = "chinese-word")]
 pub use crate::chinese::{ChineseTokenizer, chinese_wer};
+
+#[cfg(feature = "chinese-variant")]
+pub use crate::transform::{ToSimplified, ToTraditional};
