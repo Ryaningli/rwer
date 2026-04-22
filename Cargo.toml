@@ -4,8 +4,9 @@ version = "0.1.1"
 edition = "2024"
 description = "A modern Rust crate for WER, CER, and related ASR evaluation metrics"
 license = "MIT"
-keywords = ["wer", "cer", "asr", "evaluation", "nlp"]
+keywords = ["wer", "cer", "asr", "chinese", "nlp"]
 categories = ["text-processing", "science"]
+repository = "https://github.com/Ryaningli/rwer"
 
 [lib]
 name = "rwer"
