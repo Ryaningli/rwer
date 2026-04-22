@@ -76,6 +76,8 @@ assert!(wer(&ref_text, &hyp_text) < 1e-10);
 | `SubstituteWords` | Replace whole words via a map |
 | `RemoveSpecificWords` | Remove specified words |
 | `ExpandCommonEnglishContractions` | Expand contractions (e.g., "don't" -> "do not") |
+| `ToSimplified` | Convert Traditional Chinese to Simplified Chinese (`chinese-variant` feature) |
+| `ToTraditional` | Convert Simplified Chinese to Traditional Chinese (`chinese-variant` feature) |
 
 ## Chinese Word-Level WER
 
@@ -103,6 +105,30 @@ use rwer::ChineseTokenizer;
 let tokenizer = ChineseTokenizer::new();
 let words = tokenizer.cut("我们中出了一个叛徒");
 println!("{:?}", words);
+```
+
+## Chinese Variant Normalization
+
+When comparing ASR outputs that may use different Chinese scripts (Traditional vs Simplified), enable the `chinese-variant` feature:
+
+```toml
+[dependencies]
+rwer = { version = "0.1", features = ["chinese-variant"] }
+```
+
+```rust
+use rwer::{ToSimplified, Compose, Transform, wer};
+
+// Normalize both texts to Simplified before comparison
+let pipeline = Compose::new(vec![Box::new(ToSimplified)]);
+let ref_text = pipeline.transform("繁體中文");
+let hyp_text = pipeline.transform("简体中文");
+assert_eq!(wer(&ref_text, &hyp_text), 0.0);
+```
+
+CLI usage:
+```bash
+rwer --to-simplified "繁體中文測試" "简体中文测试"
 ```
 
 ## CLI
@@ -152,6 +178,7 @@ println!("Deletions: {:?}", errors.deletions);
 | Feature | Description | Dependencies |
 |---------|-------------|--------------|
 | `chinese-word` | Chinese word segmentation for word-level WER (default) | `jieba-rs` |
+| `chinese-variant` | Traditional/Simplified Chinese conversion | `zhconv` |
 | `cli` | CLI binary | `clap`, `serde`, `serde_json` |
 
 ## Benchmarks
@@ -164,6 +191,7 @@ cargo bench
 
 - [jiwer](https://github.com/jitsi/jiwer) — API design and architecture reference for WER/CER metrics
 - [jieba-rs](https://github.com/messense/jieba-rs) — Chinese word segmentation
+- [zhconv](https://github.com/nicemayi/zhconv-rs) — Traditional/Simplified Chinese conversion
 
 ## License
 

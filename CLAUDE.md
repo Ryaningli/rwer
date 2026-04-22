@@ -11,7 +11,7 @@ A modern Rust crate for Word Error Rate (WER), Character Error Rate (CER), and r
 - **fmt** — `cargo fmt -- --check` must pass
 - **Documentation** — all public items must have doc comments with examples
 - **Internationalized docs** — README.md in English (default) + README.zh-CN.md (Chinese)
-- **Feature gates** — `chinese-word` feature (default) for jieba-rs word-level Chinese WER, `cli` feature for binary
+- **Feature gates** — `chinese-word` feature (default) for jieba-rs word-level Chinese WER, `chinese-variant` feature for zhconv Traditional/Simplified conversion, `cli` feature for binary
 - **No unwraps in library code** — use `Result`/`Option` properly
 
 ## Architecture

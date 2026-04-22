@@ -76,6 +76,8 @@ assert!(wer(&ref_text, &hyp_text) < 1e-10);
 | `SubstituteWords` | 按映射表替换整词 |
 | `RemoveSpecificWords` | 去除指定词语 |
 | `ExpandCommonEnglishContractions` | 展开英语缩写（如 "don't" -> "do not"） |
+| `ToSimplified` | 繁体转简体（`chinese-variant` 功能） |
+| `ToTraditional` | 简体转繁体（`chinese-variant` 功能） |
 
 ## 中文词级 WER
 
@@ -103,6 +105,29 @@ use rwer::ChineseTokenizer;
 let tokenizer = ChineseTokenizer::new();
 let words = tokenizer.cut("我们中出了一个叛徒");
 println!("{:?}", words);
+```
+
+## 中文繁简转换
+
+当参考文本和 ASR 输出使用不同的中文书写体系（繁体/简体）时，启用 `chinese-variant` 功能：
+
+```toml
+[dependencies]
+rwer = { version = "0.1", features = ["chinese-variant"] }
+```
+
+```rust
+use rwer::{ToSimplified, Compose, Transform, wer};
+
+let pipeline = Compose::new(vec![Box::new(ToSimplified)]);
+let ref_text = pipeline.transform("繁體中文");
+let hyp_text = pipeline.transform("简体中文");
+assert_eq!(wer(&ref_text, &hyp_text), 0.0);
+```
+
+CLI 用法：
+```bash
+rwer --to-simplified "繁體中文測試" "简体中文测试"
 ```
 
 ## 命令行工具
@@ -152,6 +177,7 @@ println!("删除: {:?}", errors.deletions);
 | 功能 | 说明 | 依赖 |
 |------|------|------|
 | `chinese-word` | 中文分词（词级 WER，默认启用） | `jieba-rs` |
+| `chinese-variant` | 中文繁简转换 | `zhconv` |
 | `cli` | 命令行工具 | `clap`, `serde`, `serde_json` |
 
 ## 基准测试
@@ -164,6 +190,7 @@ cargo bench
 
 - [jiwer](https://github.com/jitsi/jiwer) — WER/CER 指标的 API 设计和架构参考
 - [jieba-rs](https://github.com/messense/jieba-rs) — 中文分词
+- [zhconv](https://github.com/nicemayi/zhconv-rs) — 中文繁简转换
 
 ## 许可证
 
