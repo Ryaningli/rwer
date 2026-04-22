@@ -254,6 +254,50 @@ impl Transform for ExpandCommonEnglishContractions {
     }
 }
 
+/// Convert Traditional Chinese text to Simplified Chinese.
+///
+/// Uses the `zhconv` crate with `OpenCC` rules for high-accuracy conversion.
+///
+/// # Examples
+///
+/// ```
+/// use rwer::transform::{ToSimplified, Transform};
+///
+/// let t = ToSimplified;
+/// assert_eq!(t.transform("繁體中文"), "繁体中文");
+/// ```
+#[cfg(feature = "chinese-variant")]
+pub struct ToSimplified;
+
+#[cfg(feature = "chinese-variant")]
+impl Transform for ToSimplified {
+    fn transform(&self, input: &str) -> String {
+        zhconv::zhconv(input, zhconv::Variant::ZhCN)
+    }
+}
+
+/// Convert Simplified Chinese text to Traditional Chinese.
+///
+/// Uses the `zhconv` crate with `OpenCC` rules for high-accuracy conversion.
+///
+/// # Examples
+///
+/// ```
+/// use rwer::transform::{ToTraditional, Transform};
+///
+/// let t = ToTraditional;
+/// assert_eq!(t.transform("简体中文"), "簡體中文");
+/// ```
+#[cfg(feature = "chinese-variant")]
+pub struct ToTraditional;
+
+#[cfg(feature = "chinese-variant")]
+impl Transform for ToTraditional {
+    fn transform(&self, input: &str) -> String {
+        zhconv::zhconv(input, zhconv::Variant::ZhHant)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -540,5 +584,80 @@ mod tests {
     fn compose_empty_input() {
         let pipeline = Compose::new(vec![Box::new(ToLower), Box::new(Strip)]);
         assert_eq!(pipeline.transform(""), "");
+    }
+
+    #[cfg(feature = "chinese-variant")]
+    mod chinese_variant_tests {
+        use super::*;
+
+        #[test]
+        fn to_simplified_traditional_to_simplified() {
+            let t = ToSimplified;
+            assert_eq!(t.transform("繁體中文"), "繁体中文");
+        }
+
+        #[test]
+        fn to_simplified_mixed_text() {
+            let t = ToSimplified;
+            assert_eq!(t.transform("這是個測試"), "这是个测试");
+        }
+
+        #[test]
+        fn to_simplified_already_simplified() {
+            let t = ToSimplified;
+            assert_eq!(t.transform("简体中文"), "简体中文");
+        }
+
+        #[test]
+        fn to_simplified_empty() {
+            let t = ToSimplified;
+            assert_eq!(t.transform(""), "");
+        }
+
+        #[test]
+        fn to_simplified_with_punctuation() {
+            let t = ToSimplified;
+            assert_eq!(t.transform("你好，世界！"), "你好，世界！");
+        }
+
+        #[test]
+        fn to_traditional_simplified_to_traditional() {
+            let t = ToTraditional;
+            assert_eq!(t.transform("简体中文"), "簡體中文");
+        }
+
+        #[test]
+        fn to_traditional_already_traditional() {
+            let t = ToTraditional;
+            assert_eq!(t.transform("繁體中文"), "繁體中文");
+        }
+
+        #[test]
+        fn to_traditional_empty() {
+            let t = ToTraditional;
+            assert_eq!(t.transform(""), "");
+        }
+
+        #[test]
+        fn to_traditional_with_punctuation() {
+            let t = ToTraditional;
+            assert_eq!(t.transform("你好，世界！"), "你好，世界！");
+        }
+
+        #[test]
+        fn roundtrip_simplified_traditional_simplified() {
+            let original = "简体中文测试";
+            let t = ToTraditional;
+            let traditional = t.transform(original);
+            let s = ToSimplified;
+            let back = s.transform(&traditional);
+            assert_eq!(back, original);
+        }
+
+        #[test]
+        fn compose_with_to_simplified() {
+            let pipeline = Compose::new(vec![Box::new(ToSimplified), Box::new(ToLower)]);
+            assert_eq!(pipeline.transform("繁體中文"), "繁体中文");
+        }
     }
 }
