@@ -128,7 +128,7 @@ assert_eq!(wer(&ref_text, &hyp_text), 0.0);
 
 CLI usage:
 ```bash
-rwer --to-simplified "繁體中文測試" "简体中文测试"
+rwer -s "繁體中文測試" "简体中文测试"
 ```
 
 ## CLI
@@ -142,7 +142,7 @@ rwer = { version = "0.1", features = ["cli"] }
 
 ```bash
 # Install
-cargo install rwer --features cli
+cargo install rwer --all-features
 
 # Basic WER
 rwer "the cat sat on the mat" "the cat sat on a mat"
