@@ -44,8 +44,7 @@ CER works with Chinese text out of the box (grapheme-level). The `chinese-word` 
    - `cargo llvm-cov --features cli --ignore-filename-regex 'bin/' --fail-under-lines 100`
 3. Commit: `release: vX.Y.Z`
 4. Tag: `git tag vX.Y.Z`
-5. Push: `git push && git push --tags`
-6. Publish: `cargo publish` (run with `--all-features` or per-feature as needed)
+5. Push: `git push && git push --tags` — GitHub Actions will auto-publish to crates.io on tag push
 
 ## Commit Checklist
 
