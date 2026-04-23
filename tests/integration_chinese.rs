@@ -44,3 +44,23 @@ fn chinese_wer_with_punctuation() {
     let result = chinese_wer("你好，世界！", "你好，地球！");
     assert!((0.0..=1.0).contains(&result));
 }
+
+#[test]
+fn chinese_tokenizer_with_process_words() {
+    use rwer::{process_words, visualize_alignment};
+
+    let tokenizer = ChineseTokenizer::new();
+    let ref_text = "今天天气真好";
+    let hyp_text = "今天天气很棒";
+    let ref_words: Vec<String> = tokenizer.cut(ref_text);
+    let hyp_words: Vec<String> = tokenizer.cut(hyp_text);
+
+    let output = process_words(&ref_words.join(" "), &hyp_words.join(" "));
+    assert!(output.wer > 0.0);
+    assert!(output.wer <= 1.0);
+    assert!(output.hits > 0);
+
+    let viz = visualize_alignment(&output);
+    assert!(viz.contains("REF:"));
+    assert!(viz.contains("HYP:"));
+}
