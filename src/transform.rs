@@ -558,6 +558,228 @@ mod tests {
     }
 
     #[test]
+    fn expand_contractions_wouldnt() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("wouldn't"), "would not");
+    }
+
+    #[test]
+    fn expand_contractions_couldnt() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("couldn't"), "could not");
+    }
+
+    #[test]
+    fn expand_contractions_shouldnt() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("shouldn't"), "should not");
+    }
+
+    #[test]
+    fn expand_contractions_havent() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("haven't"), "have not");
+    }
+
+    #[test]
+    fn expand_contractions_theyll() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("they'll go"), "they will go");
+    }
+
+    #[test]
+    fn expand_contractions_theyre() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("they're here"), "they are here");
+    }
+
+    #[test]
+    fn expand_contractions_theyve() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("they've done it"), "they have done it");
+    }
+
+    #[test]
+    fn expand_contractions_thats() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("that's great"), "that is great");
+    }
+
+    #[test]
+    fn expand_contractions_shant() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("shan't"), "shall not");
+    }
+
+    #[test]
+    fn expand_contractions_mustnt() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("mustn't"), "must not");
+    }
+
+    #[test]
+    fn expand_contractions_neednt() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("needn't"), "need not");
+    }
+
+    #[test]
+    fn expand_contractions_hes() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("he's here"), "he is here");
+    }
+
+    #[test]
+    fn expand_contractions_shes() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("she's here"), "she is here");
+    }
+
+    #[test]
+    fn expand_contractions_wed() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("we'd go"), "we would go");
+    }
+
+    #[test]
+    fn expand_contractions_youre() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("you're right"), "you are right");
+    }
+
+    #[test]
+    fn expand_contractions_ive() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("i've seen it"), "I have seen it");
+    }
+
+    #[test]
+    fn expand_contractions_id() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("i'd go"), "I would go");
+    }
+
+    #[test]
+    fn expand_contractions_ill() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("i'll do it"), "I will do it");
+    }
+
+    #[test]
+    fn expand_contractions_doesnt() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("doesn't"), "does not");
+    }
+
+    #[test]
+    fn expand_contractions_didnt() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("didn't"), "did not");
+    }
+
+    #[test]
+    fn expand_contractions_isnt() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("isn't"), "is not");
+    }
+
+    #[test]
+    fn expand_contractions_arent() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("aren't"), "are not");
+    }
+
+    #[test]
+    fn expand_contractions_wasnt() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("wasn't"), "was not");
+    }
+
+    #[test]
+    fn expand_contractions_werent() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("weren't"), "were not");
+    }
+
+    #[test]
+    fn expand_contractions_hadnt() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("hadn't"), "had not");
+    }
+
+    #[test]
+    fn expand_contractions_herell() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("here's"), "here is");
+    }
+
+    #[test]
+    fn expand_contractions_theres() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("there's"), "there is");
+    }
+
+    #[test]
+    fn expand_contractions_whats() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("what's"), "what is");
+    }
+
+    #[test]
+    fn expand_contractions_lets() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("let's go"), "let us go");
+    }
+
+    #[test]
+    fn expand_contractions_youll() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("you'll see"), "you will see");
+    }
+
+    #[test]
+    fn expand_contractions_youd() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("you'd like"), "you would like");
+    }
+
+    #[test]
+    fn expand_contractions_youve() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("you've got"), "you have got");
+    }
+
+    #[test]
+    fn expand_contractions_shell() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("she'll go"), "she will go");
+    }
+
+    #[test]
+    fn expand_contractions_shed() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("she'd go"), "she would go");
+    }
+
+    #[test]
+    fn expand_contractions_well() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("we'll go"), "we will go");
+    }
+
+    #[test]
+    fn expand_contractions_weve() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("we've been"), "we have been");
+    }
+
+    #[test]
+    fn expand_contractions_were() {
+        let t = ExpandCommonEnglishContractions;
+        assert_eq!(t.transform("we're here"), "we are here");
+    }
+
+    #[test]
     fn compose_chaining() {
         let pipeline = Compose::new(vec![
             Box::new(Strip),
