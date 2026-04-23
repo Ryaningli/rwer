@@ -171,7 +171,7 @@ rwer --alignment "the cat sat" "the dog sat"
 rwer --all "the cat sat" "the dog sat"
 
 # 带文本规范化
-rwer --lowercase --remove-punctuation "Hello, World!" "hello world"
+rwer --lowercase --remove-punctuation --normalize-spaces "Hello,  World!" "hello world"
 ```
 
 ## 错误分析

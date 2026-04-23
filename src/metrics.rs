@@ -39,6 +39,19 @@ pub fn wer(reference: &str, hypothesis: &str) -> f64 {
 }
 
 /// Compute WER for multiple sentence pairs (flattened).
+///
+/// All sentences are concatenated and evaluated as a single text.
+///
+/// # Examples
+///
+/// ```
+/// use rwer::wer_sentences;
+///
+/// let ref_sents = ["the cat sat", "the dog ran"];
+/// let hyp_sents = ["the cat sat", "the dog walked"];
+/// let result = wer_sentences(&ref_sents, &hyp_sents);
+/// assert!((result - 1.0 / 6.0).abs() < 1e-10);
+/// ```
 #[must_use]
 pub fn wer_sentences(ref_sentences: &[&str], hyp_sentences: &[&str]) -> f64 {
     let all_ref: Vec<&str> = ref_sentences
@@ -86,6 +99,15 @@ pub fn cer(reference: &str, hypothesis: &str) -> f64 {
 /// Compute Match Error Rate.
 ///
 /// MER = (S + D + I) / (H + S + D + I) where H = hits.
+///
+/// # Examples
+///
+/// ```
+/// use rwer::mer;
+///
+/// assert!(mer("hello world", "hello world") < 1e-10);
+/// assert!((mer("a", "a b") - 0.5).abs() < 1e-10);
+/// ```
 #[must_use]
 pub fn mer(reference: &str, hypothesis: &str) -> f64 {
     let ref_words = split_words(reference);
@@ -107,6 +129,17 @@ fn compute_mer<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]) -> 
 /// Compute Word Information Preserved.
 ///
 /// WIP = (H / N) * (H / (H + S + D + I))
+///
+/// Returns 1.0 for perfect match, 0.0 for no match or empty inputs.
+///
+/// # Examples
+///
+/// ```
+/// use rwer::wip;
+///
+/// assert!((wip("hello world", "hello world") - 1.0).abs() < 1e-10);
+/// assert!(wip("", "") - 1.0 < 1e-10);
+/// ```
 #[must_use]
 pub fn wip(reference: &str, hypothesis: &str) -> f64 {
     let ref_words = split_words(reference);
@@ -138,6 +171,15 @@ fn compute_wip<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]) -> 
 /// Compute Word Information Lost.
 ///
 /// WIL = 1 - WIP
+///
+/// # Examples
+///
+/// ```
+/// use rwer::wil;
+///
+/// assert!(wil("hello world", "hello world") < 1e-10);
+/// assert!((wil("hello", "world") - 1.0).abs() < 1e-10);
+/// ```
 #[must_use]
 pub fn wil(reference: &str, hypothesis: &str) -> f64 {
     1.0 - wip(reference, hypothesis)

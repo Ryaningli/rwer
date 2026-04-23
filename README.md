@@ -172,7 +172,7 @@ rwer --alignment "the cat sat" "the dog sat"
 rwer --all "the cat sat" "the dog sat"
 
 # With normalization
-rwer --lowercase --remove-punctuation "Hello, World!" "hello world"
+rwer --lowercase --remove-punctuation --normalize-spaces "Hello,  World!" "hello world"
 ```
 
 ## Error Analysis

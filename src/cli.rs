@@ -41,9 +41,13 @@ pub struct Cli {
     #[arg(short = 'l', long)]
     pub lowercase: bool,
 
-    /// Remove punctuation and normalize spaces before evaluation
+    /// Remove punctuation before evaluation
     #[arg(short = 'r', long)]
     pub remove_punctuation: bool,
+
+    /// Normalize spaces (collapse consecutive spaces and remove spaces between CJK characters)
+    #[arg(short = 'w', long)]
+    pub normalize_spaces: bool,
 
     /// Use Chinese word segmentation (requires 'chinese-word' feature)
     #[arg(short = 'z', long)]
@@ -75,6 +79,8 @@ pub fn build_pipeline(cli: &Cli) -> Option<Box<dyn Transform>> {
     }
     if cli.remove_punctuation {
         transforms.push(Box::new(RemovePunctuation));
+    }
+    if cli.normalize_spaces {
         transforms.push(Box::new(NormalizeSpaces));
     }
 
@@ -159,6 +165,7 @@ mod tests {
             all: false,
             lowercase: false,
             remove_punctuation: false,
+            normalize_spaces: false,
             #[cfg(feature = "chinese-word")]
             chinese: false,
             #[cfg(feature = "chinese-variant")]
@@ -197,8 +204,18 @@ mod tests {
         let mut cli = cli_with_ref_hyp("Hello, World!", "hello world");
         cli.lowercase = true;
         cli.remove_punctuation = true;
+        cli.normalize_spaces = true;
         let pipeline = build_pipeline(&cli).unwrap();
-        let result = pipeline.transform("Hello, World!");
+        let result = pipeline.transform("Hello,  World!");
+        assert_eq!(result, "hello world");
+    }
+
+    #[test]
+    fn build_pipeline_normalize_spaces() {
+        let mut cli = cli_with_ref_hyp("hello", "hello");
+        cli.normalize_spaces = true;
+        let pipeline = build_pipeline(&cli).unwrap();
+        let result = pipeline.transform("hello   world");
         assert_eq!(result, "hello world");
     }
 
@@ -393,6 +410,7 @@ mod tests {
                 all: false,
                 lowercase: false,
                 remove_punctuation: false,
+                normalize_spaces: false,
                 chinese: true,
                 #[cfg(feature = "chinese-variant")]
                 simplified: false,
@@ -412,6 +430,7 @@ mod tests {
                 all: false,
                 lowercase: false,
                 remove_punctuation: false,
+                normalize_spaces: false,
                 chinese: true,
                 #[cfg(feature = "chinese-variant")]
                 simplified: false,
@@ -454,6 +473,7 @@ mod tests {
                 all: false,
                 lowercase: false,
                 remove_punctuation: false,
+                normalize_spaces: false,
                 #[cfg(feature = "chinese-word")]
                 chinese: false,
                 simplified: true,

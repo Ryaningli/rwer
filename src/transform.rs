@@ -97,7 +97,17 @@ impl Transform for RemovePunctuation {
 pub struct NormalizeSpaces;
 
 fn is_cjk(c: char) -> bool {
-    ('\u{4E00}'..='\u{9FFF}').contains(&c)
+    matches!(
+        c,
+        '\u{4E00}'..='\u{9FFF}'       // CJK Unified Ideographs
+            | '\u{3400}'..='\u{4DBF}' // CJK Extension A
+            | '\u{20000}'..='\u{2A6DF}' // CJK Extension B
+            | '\u{2A700}'..='\u{2B73F}' // CJK Extension C
+            | '\u{2B740}'..='\u{2B81F}' // CJK Extension D
+            | '\u{2B820}'..='\u{2CEAF}' // CJK Extension E
+            | '\u{F900}'..='\u{FAFF}' // CJK Compatibility Ideographs
+            | '\u{2F800}'..='\u{2FA1F}' // CJK Compatibility Ideographs Supplement
+    )
 }
 
 impl Transform for NormalizeSpaces {
@@ -327,6 +337,10 @@ impl Transform for ToTraditional {
 ///
 /// This transform is only available when the `chinese-word` feature is enabled.
 ///
+/// **Warning:** Do not place [`NormalizeSpaces`](super::NormalizeSpaces) or
+/// [`RemoveWhitespace`](super::RemoveWhitespace) after this transform in a pipeline,
+/// as they would remove the spaces inserted by segmentation.
+///
 /// # Examples
 ///
 /// ```
@@ -510,6 +524,31 @@ mod tests {
     fn normalize_spaces_mixed_cjk_latin_multi() {
         let t = NormalizeSpaces;
         assert_eq!(t.transform("hello  世界"), "hello 世界");
+    }
+
+    #[test]
+    fn normalize_spaces_cjk_extension_a() {
+        let t = NormalizeSpaces;
+        assert_eq!(t.transform("\u{3400} \u{3401}"), "\u{3400}\u{3401}");
+    }
+
+    #[test]
+    fn normalize_spaces_cjk_compatibility_ideographs() {
+        let t = NormalizeSpaces;
+        assert_eq!(t.transform("\u{F900} \u{F901}"), "\u{F900}\u{F901}");
+    }
+
+    #[test]
+    fn normalize_spaces_cjk_compatibility_supplement() {
+        let t = NormalizeSpaces;
+        assert_eq!(t.transform("\u{2F800} \u{2F801}"), "\u{2F800}\u{2F801}");
+    }
+
+    #[test]
+    fn normalize_spaces_cjk_non_cjk_kept() {
+        let t = NormalizeSpaces;
+        assert_eq!(t.transform("hello 世界"), "hello 世界");
+        assert_eq!(t.transform("世界 hello"), "世界 hello");
     }
 
     #[test]
