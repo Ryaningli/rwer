@@ -71,7 +71,7 @@ assert!(wer(&ref_text, &hyp_text) < 1e-10);
 | `ToUpper` | 转换为大写 |
 | `Strip` | 去除首尾空白 |
 | `RemovePunctuation` | 去除 Unicode 标点符号 |
-| `RemoveMultipleSpaces` | 合并连续空格 |
+| `NormalizeSpaces` | 合并连续空格 + 移除 CJK 字符间的空格 |
 | `RemoveWhitespace` | 去除所有空白字符 |
 | `SubstituteWords` | 按映射表替换整词 |
 | `RemoveSpecificWords` | 去除指定词语 |

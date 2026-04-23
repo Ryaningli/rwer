@@ -1,4 +1,4 @@
-use rwer::{Compose, RemoveMultipleSpaces, RemovePunctuation, Strip, ToLower, Transform, wer};
+use rwer::{Compose, NormalizeSpaces, RemovePunctuation, Strip, ToLower, Transform, wer};
 
 #[test]
 fn transform_pipeline_reduces_wer() {
@@ -6,7 +6,7 @@ fn transform_pipeline_reduces_wer() {
         Box::new(Strip),
         Box::new(ToLower),
         Box::new(RemovePunctuation),
-        Box::new(RemoveMultipleSpaces),
+        Box::new(NormalizeSpaces),
     ]);
 
     let ref_text = pipeline.transform("Hello, World!");

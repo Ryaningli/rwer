@@ -86,23 +86,45 @@ impl Transform for RemovePunctuation {
     }
 }
 
-/// Collapse multiple consecutive spaces into one.
-pub struct RemoveMultipleSpaces;
+/// Normalize spaces: collapse consecutive spaces and remove spaces between CJK characters.
+///
+/// This transform handles two cases:
+/// - Multiple consecutive spaces are collapsed into one.
+/// - A space between two CJK characters is removed entirely.
+///
+/// **Warning:** Do not place after [`ChineseWordSegment`](super::ChineseWordSegment),
+/// as it would remove the spaces inserted by segmentation.
+pub struct NormalizeSpaces;
 
-impl Transform for RemoveMultipleSpaces {
+fn is_cjk(c: char) -> bool {
+    ('\u{4E00}'..='\u{9FFF}').contains(&c)
+}
+
+impl Transform for NormalizeSpaces {
     fn transform(&self, input: &str) -> String {
+        let chars: Vec<char> = input.chars().collect();
         let mut result = String::with_capacity(input.len());
         let mut prev_space = false;
-        for c in input.chars() {
-            if c == ' ' {
+        let mut i = 0;
+        while i < chars.len() {
+            if chars[i] == ' ' {
+                let prev_non_space = result.chars().rev().find(|&c| c != ' ');
+                let next_non_space = chars[i + 1..].iter().find(|&&c| c != ' ').copied();
+                let cjk_both =
+                    prev_non_space.is_some_and(is_cjk) && next_non_space.is_some_and(is_cjk);
+                if cjk_both {
+                    i += 1;
+                    continue;
+                }
                 if !prev_space {
-                    result.push(c);
+                    result.push(' ');
                     prev_space = true;
                 }
             } else {
-                result.push(c);
+                result.push(chars[i]);
                 prev_space = false;
             }
+            i += 1;
         }
         result
     }
@@ -436,33 +458,58 @@ mod tests {
     }
 
     #[test]
-    fn remove_multiple_spaces_transform() {
-        let t = RemoveMultipleSpaces;
+    fn normalize_spaces_collapse_multiple() {
+        let t = NormalizeSpaces;
         assert_eq!(t.transform("hello   world  foo"), "hello world foo");
     }
 
     #[test]
-    fn remove_multiple_spaces_empty() {
-        let t = RemoveMultipleSpaces;
+    fn normalize_spaces_empty() {
+        let t = NormalizeSpaces;
         assert_eq!(t.transform(""), "");
     }
 
     #[test]
-    fn remove_multiple_spaces_no_extra_spaces() {
-        let t = RemoveMultipleSpaces;
+    fn normalize_spaces_no_extra_spaces() {
+        let t = NormalizeSpaces;
         assert_eq!(t.transform("hello world"), "hello world");
     }
 
     #[test]
-    fn remove_multiple_spaces_leading_trailing() {
-        let t = RemoveMultipleSpaces;
+    fn normalize_spaces_leading_trailing() {
+        let t = NormalizeSpaces;
         assert_eq!(t.transform("  hello  "), " hello ");
     }
 
     #[test]
-    fn remove_multiple_spaces_only_spaces() {
-        let t = RemoveMultipleSpaces;
+    fn normalize_spaces_only_spaces() {
+        let t = NormalizeSpaces;
         assert_eq!(t.transform("     "), " ");
+    }
+
+    #[test]
+    fn normalize_spaces_cjk_between() {
+        let t = NormalizeSpaces;
+        assert_eq!(t.transform("即 经 济 上"), "即经济上");
+    }
+
+    #[test]
+    fn normalize_spaces_cjk_consecutive() {
+        let t = NormalizeSpaces;
+        assert_eq!(t.transform("中  文"), "中文");
+    }
+
+    #[test]
+    fn normalize_spaces_mixed_cjk_latin() {
+        let t = NormalizeSpaces;
+        assert_eq!(t.transform("hello 世界"), "hello 世界");
+        assert_eq!(t.transform("世界 hello"), "世界 hello");
+    }
+
+    #[test]
+    fn normalize_spaces_mixed_cjk_latin_multi() {
+        let t = NormalizeSpaces;
+        assert_eq!(t.transform("hello  世界"), "hello 世界");
     }
 
     #[test]
@@ -834,7 +881,7 @@ mod tests {
             Box::new(Strip),
             Box::new(ToLower),
             Box::new(RemovePunctuation),
-            Box::new(RemoveMultipleSpaces),
+            Box::new(NormalizeSpaces),
         ]);
         assert_eq!(pipeline.transform("  Hello, World!  "), "hello world");
     }

@@ -78,7 +78,7 @@ pub use crate::output::{
     AlignmentChunk, AlignmentOutput, ErrorCounts, collect_error_counts, visualize_alignment,
 };
 pub use crate::transform::{
-    Compose, ExpandCommonEnglishContractions, RemoveMultipleSpaces, RemovePunctuation,
+    Compose, ExpandCommonEnglishContractions, NormalizeSpaces, RemovePunctuation,
     RemoveSpecificWords, RemoveWhitespace, Strip, SubstituteWords, ToLower, ToUpper, Transform,
 };
 

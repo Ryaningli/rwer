@@ -71,7 +71,7 @@ assert!(wer(&ref_text, &hyp_text) < 1e-10);
 | `ToUpper` | Convert to uppercase |
 | `Strip` | Strip leading/trailing whitespace |
 | `RemovePunctuation` | Remove Unicode punctuation |
-| `RemoveMultipleSpaces` | Collapse consecutive spaces |
+| `NormalizeSpaces` | Collapse consecutive spaces + remove spaces between CJK characters |
 | `RemoveWhitespace` | Remove all whitespace |
 | `SubstituteWords` | Replace whole words via a map |
 | `RemoveSpecificWords` | Remove specified words |

@@ -5,8 +5,8 @@ use clap::Parser;
 
 #[cfg(feature = "cli")]
 use crate::{
-    Compose, RemoveMultipleSpaces, RemovePunctuation, Strip, ToLower, Transform, cer,
-    process_chars, process_words, visualize_alignment, wer,
+    Compose, NormalizeSpaces, RemovePunctuation, Strip, ToLower, Transform, cer, process_chars,
+    process_words, visualize_alignment, wer,
 };
 
 /// Word Error Rate evaluation tool
@@ -41,7 +41,7 @@ pub struct Cli {
     #[arg(short = 'l', long)]
     pub lowercase: bool,
 
-    /// Remove punctuation before evaluation
+    /// Remove punctuation and normalize spaces before evaluation
     #[arg(short = 'r', long)]
     pub remove_punctuation: bool,
 
@@ -75,7 +75,7 @@ pub fn build_pipeline(cli: &Cli) -> Option<Box<dyn Transform>> {
     }
     if cli.remove_punctuation {
         transforms.push(Box::new(RemovePunctuation));
-        transforms.push(Box::new(RemoveMultipleSpaces));
+        transforms.push(Box::new(NormalizeSpaces));
     }
 
     #[cfg(feature = "chinese-word")]
@@ -343,7 +343,7 @@ mod tests {
         let pipeline: Box<dyn Transform> = Box::new(Compose::new(vec![
             Box::new(ToLower),
             Box::new(RemovePunctuation),
-            Box::new(RemoveMultipleSpaces),
+            Box::new(NormalizeSpaces),
         ]));
         let result = process_and_format(&input, Some(pipeline.as_ref()));
         let wer_val: f64 = result.trim().parse().unwrap();
