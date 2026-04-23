@@ -65,3 +65,47 @@ fn chinese_tokenizer_with_process_words() {
     assert!(viz.contains("REF:"));
     assert!(viz.contains("HYP:"));
 }
+
+// --- Tests using the new transform-based approach ---
+
+#[test]
+fn chinese_word_segment_transform_basic() {
+    use rwer::{ChineseWordSegment, Transform};
+
+    let t = ChineseWordSegment::new();
+    let result = t.transform("今天天气真好");
+    assert!(!result.is_empty());
+    assert!(result.contains(' '));
+}
+
+#[test]
+fn chinese_word_segment_transform_empty() {
+    use rwer::{ChineseWordSegment, Transform};
+
+    let t = ChineseWordSegment::new();
+    assert_eq!(t.transform(""), "");
+}
+
+#[test]
+fn chinese_word_segment_in_pipeline() {
+    use rwer::{ChineseWordSegment, Compose, Transform, process_words};
+
+    let pipeline = Compose::new(vec![Box::new(ChineseWordSegment::new())]);
+    let ref_text = pipeline.transform("今天天气真好");
+    let hyp_text = pipeline.transform("今天天气很棒");
+
+    let output = process_words(&ref_text, &hyp_text);
+    assert!(output.wer > 0.0);
+    assert!(output.wer <= 1.0);
+}
+
+#[test]
+fn chinese_segment_with_lowercase() {
+    use rwer::{ChineseWordSegment, Compose, ToLower, Transform, process_words};
+
+    let pipeline = Compose::new(vec![Box::new(ChineseWordSegment::new()), Box::new(ToLower)]);
+    let ref_text = pipeline.transform("Hello世界");
+    let hyp_text = pipeline.transform("hello世界");
+    let output = process_words(&ref_text, &hyp_text);
+    assert!(output.wer < 1e-10);
+}
