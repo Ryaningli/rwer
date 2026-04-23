@@ -146,25 +146,6 @@ pub fn process_and_format(input: &EvalInput, pipeline: Option<&dyn Transform>) -
     result
 }
 
-/// Parse CLI arguments and run the WER/CER evaluation.
-#[cfg(feature = "cli")]
-pub fn run() {
-    let cli = Cli::parse();
-
-    let input = EvalInput {
-        reference: cli.reference.clone().unwrap_or_default(),
-        hypothesis: cli.hypothesis.clone().unwrap_or_default(),
-        character: cli.character,
-        alignment: cli.alignment,
-        all: cli.all,
-    };
-
-    let pipeline = build_pipeline(&cli);
-    let pipeline_ref = pipeline.as_deref();
-    let result = process_and_format(&input, pipeline_ref);
-    print!("{result}");
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

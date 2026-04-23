@@ -29,10 +29,12 @@ fn main() {
     println!("\n=== Chinese WER (if enabled) ===");
     #[cfg(feature = "chinese-word")]
     {
-        let cn_ref = "今天天气真好";
-        let cn_hyp = "今天天气很棒";
-        let cn_result = rwer::chinese_wer(cn_ref, cn_hyp);
-        println!("Chinese WER: {:.2}%", cn_result * 100.0);
+        use rwer::ChineseWordSegment;
+        let pipeline = Compose::new(vec![Box::new(ChineseWordSegment::new())]);
+        let cn_ref = pipeline.transform("今天天气真好");
+        let cn_hyp = pipeline.transform("今天天气很棒");
+        let cn_output = process_words(&cn_ref, &cn_hyp);
+        println!("Chinese WER: {:.2}%", cn_output.wer * 100.0);
     }
     #[cfg(not(feature = "chinese-word"))]
     {

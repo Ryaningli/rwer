@@ -188,13 +188,17 @@ mod tests {
     use super::*;
 
     /// Assert two f64 values are approximately equal.
+    fn approx_eq(a: f64, b: f64) -> bool {
+        (a - b).abs() < 1e-10
+    }
+
     macro_rules! assert_approx_eq {
         ($left:expr, $right:expr) => {
+            let left = $left;
+            let right = $right;
             assert!(
-                (&$left - &$right).abs() < 1e-10,
-                "assertion failed: {:?} != {:?}",
-                $left,
-                $right
+                approx_eq(left, right),
+                "assertion failed: {left:?} != {right:?}"
             );
         };
     }

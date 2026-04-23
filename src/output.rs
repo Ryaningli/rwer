@@ -76,19 +76,34 @@ pub(crate) enum SplitKind {
 
 impl fmt::Display for AlignmentOutput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "WER:  {:.2}%", self.wer * 100.0)?;
-        writeln!(f, "MER:  {:.2}%", self.mer * 100.0)?;
-        writeln!(f, "WIP:  {:.4}", self.wip)?;
-        writeln!(f, "WIL:  {:.4}", self.wil)?;
         if self.cer > 0.0 {
-            writeln!(f, "CER:  {:.2}%", self.cer * 100.0)?;
+            write!(
+                f,
+                "WER:  {:.2}%\nMER:  {:.2}%\nWIP: {:.4}\nWIL: {:.4}\nCER:  {:.2}%\nHits: {}  Sub: {}  Del: {}  Ins: {}\n",
+                self.wer * 100.0,
+                self.mer * 100.0,
+                self.wip,
+                self.wil,
+                self.cer * 100.0,
+                self.hits,
+                self.substitutions,
+                self.deletions,
+                self.insertions
+            )
+        } else {
+            write!(
+                f,
+                "WER:  {:.2}%\nMER:  {:.2}%\nWIP: {:.4}\nWIL: {:.4}\nHits: {}  Sub: {}  Del: {}  Ins: {}\n",
+                self.wer * 100.0,
+                self.mer * 100.0,
+                self.wip,
+                self.wil,
+                self.hits,
+                self.substitutions,
+                self.deletions,
+                self.insertions
+            )
         }
-        writeln!(
-            f,
-            "Hits: {}  Sub: {}  Del: {}  Ins: {}",
-            self.hits, self.substitutions, self.deletions, self.insertions
-        )?;
-        Ok(())
     }
 }
 
@@ -275,10 +290,14 @@ pub fn collect_error_counts(output: &AlignmentOutput) -> ErrorCounts {
 mod tests {
     use super::*;
 
+    fn approx_eq(a: f64, b: f64) -> bool {
+        (a - b).abs() < 1e-10
+    }
+
     macro_rules! assert_approx_eq {
         ($left:expr, $right:expr) => {
             assert!(
-                (&$left - &$right).abs() < 1e-10,
+                approx_eq($left, $right),
                 "assertion failed: {:?} != {:?}",
                 $left,
                 $right
@@ -650,7 +669,12 @@ mod tests {
         assert_eq!(output.ref_len, 0);
         assert_eq!(output.hyp_len, 1);
         assert_eq!(output.chunks.len(), 1);
-        assert!(matches!(output.chunks[0], AlignmentChunk::Insert { .. }));
+        assert_eq!(
+            std::mem::discriminant(&output.chunks[0]),
+            std::mem::discriminant(&AlignmentChunk::Insert {
+                hypothesis: String::new()
+            })
+        );
     }
 
     #[test]
