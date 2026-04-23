@@ -471,4 +471,58 @@ mod tests {
         let hyp_tokens = vec!["a"];
         assert_approx_eq!(compute_wer(&ref_tokens, &hyp_tokens), 0.0);
     }
+
+    #[test]
+    fn wip_zero_hits_non_empty() {
+        assert_approx_eq!(wip("a", "b"), 0.0);
+    }
+
+    #[test]
+    fn mer_with_deletions_only() {
+        let result = mer("a b", "a");
+        assert!((result - 0.5).abs() < 1e-10);
+    }
+
+    #[test]
+    fn mer_all_errors() {
+        let result = mer("a b", "c d");
+        assert!((result - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn process_words_with_substitution_and_deletion() {
+        let output = process_words("a b c", "a c");
+        assert_eq!(output.ref_len, 3);
+        assert_eq!(output.hyp_len, 2);
+        assert_eq!(output.hits, 2);
+        assert_eq!(output.deletions, 1);
+        assert!((output.wer - 1.0 / 3.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn process_words_with_insertion_only() {
+        let output = process_words("a", "a b");
+        assert_eq!(output.ref_len, 1);
+        assert_eq!(output.hyp_len, 2);
+        assert_eq!(output.hits, 1);
+        assert_eq!(output.insertions, 1);
+        assert!((output.wer - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn process_chars_with_all_operations() {
+        let output = process_chars("abcd", "axd");
+        assert_eq!(output.ref_len, 4);
+        assert_eq!(output.hits, 2);
+        assert_eq!(output.substitutions, 1);
+        assert_eq!(output.deletions, 1);
+        assert!((output.cer - 2.0 / 4.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn process_chars_display_with_cer() {
+        let output = process_chars("abc", "axc");
+        let display = format!("{output}");
+        assert!(display.contains("CER:"));
+    }
 }

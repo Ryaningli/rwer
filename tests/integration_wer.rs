@@ -87,3 +87,32 @@ fn wer_consistency_with_process() {
         process_words(ref_text, hyp_text).wer
     );
 }
+
+#[test]
+fn wer_sentences_empty_both() {
+    let ref_sents: [&str; 0] = [];
+    let hyp_sents: [&str; 0] = [];
+    assert!(wer_sentences(&ref_sents, &hyp_sents) < 1e-10);
+}
+
+#[test]
+fn wer_sentences_empty_ref() {
+    let ref_sents: [&str; 0] = [];
+    let hyp_sents = ["hello world"];
+    assert!(wer_sentences(&ref_sents, &hyp_sents) < 1e-10);
+}
+
+#[test]
+fn wer_sentences_perfect() {
+    let ref_sents = ["hello world", "foo bar"];
+    let hyp_sents = ["hello world", "foo bar"];
+    assert!(wer_sentences(&ref_sents, &hyp_sents) < 1e-10);
+}
+
+#[test]
+fn wer_sentences_single_pair() {
+    let ref_sents = ["a b c"];
+    let hyp_sents = ["a x c"];
+    let result = wer_sentences(&ref_sents, &hyp_sents);
+    assert!((result - 1.0 / 3.0).abs() < 1e-10);
+}

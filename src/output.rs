@@ -620,4 +620,125 @@ mod tests {
         assert!(counts.insertions.is_empty());
         assert!(counts.deletions.is_empty());
     }
+
+    #[test]
+    fn build_output_non_empty_ref_empty_hyp() {
+        let ref_words: Vec<&str> = vec!["a", "b"];
+        let hyp_words: Vec<&str> = vec![];
+        let ops = crate::alignment::align(&ref_words, &hyp_words);
+        let counts = crate::alignment::count_operations(&ops);
+        let output = build_output(&ref_words, &hyp_words, &ops, &counts, SplitKind::Words);
+        assert_approx_eq!(output.wer, 1.0);
+        assert_approx_eq!(output.mer, 1.0);
+        assert_approx_eq!(output.wip, 0.0);
+        assert_approx_eq!(output.wil, 1.0);
+        assert_eq!(output.ref_len, 2);
+        assert_eq!(output.hyp_len, 0);
+    }
+
+    #[test]
+    fn build_output_empty_ref_non_empty_hyp() {
+        let ref_words: Vec<&str> = vec![];
+        let hyp_words: Vec<&str> = vec!["a"];
+        let ops = crate::alignment::align(&ref_words, &hyp_words);
+        let counts = crate::alignment::count_operations(&ops);
+        let output = build_output(&ref_words, &hyp_words, &ops, &counts, SplitKind::Words);
+        assert_approx_eq!(output.wer, 0.0);
+        assert!(output.mer > 0.0);
+        assert_approx_eq!(output.wip, 0.0);
+        assert_approx_eq!(output.wil, 1.0);
+        assert_eq!(output.ref_len, 0);
+        assert_eq!(output.hyp_len, 1);
+        assert_eq!(output.chunks.len(), 1);
+        assert!(matches!(output.chunks[0], AlignmentChunk::Insert { .. }));
+    }
+
+    #[test]
+    fn build_output_grapheme_with_cer_display() {
+        let ref_chars: Vec<&str> = vec!["a", "b"];
+        let hyp_chars: Vec<&str> = vec!["a", "x"];
+        let ops = crate::alignment::align(&ref_chars, &hyp_chars);
+        let counts = crate::alignment::count_operations(&ops);
+        let output = build_output(&ref_chars, &hyp_chars, &ops, &counts, SplitKind::Graphemes);
+        assert!((output.cer - 0.5).abs() < 1e-10);
+        let display = format!("{output}");
+        assert!(display.contains("CER:"));
+    }
+
+    #[test]
+    fn build_output_perfect_match_all_fields() {
+        let ref_words: Vec<&str> = vec!["a", "b", "c"];
+        let hyp_words: Vec<&str> = vec!["a", "b", "c"];
+        let ops = crate::alignment::align(&ref_words, &hyp_words);
+        let counts = crate::alignment::count_operations(&ops);
+        let output = build_output(&ref_words, &hyp_words, &ops, &counts, SplitKind::Words);
+        assert_approx_eq!(output.wer, 0.0);
+        assert_approx_eq!(output.mer, 0.0);
+        assert_approx_eq!(output.wip, 1.0);
+        assert_approx_eq!(output.wil, 0.0);
+        assert_eq!(output.hits, 3);
+        assert_eq!(output.substitutions, 0);
+        assert_eq!(output.deletions, 0);
+        assert_eq!(output.insertions, 0);
+    }
+
+    #[test]
+    fn visualize_alignment_with_substitution() {
+        let output = AlignmentOutput {
+            wer: 0.5,
+            mer: 0.5,
+            wip: 0.5,
+            wil: 0.5,
+            cer: 0.0,
+            hits: 1,
+            substitutions: 1,
+            deletions: 0,
+            insertions: 0,
+            ref_len: 2,
+            hyp_len: 2,
+            chunks: vec![
+                AlignmentChunk::Equal { text: "a".into() },
+                AlignmentChunk::Substitute {
+                    reference: "b".into(),
+                    hypothesis: "x".into(),
+                },
+            ],
+        };
+        let viz = visualize_alignment(&output);
+        assert_eq!(viz.trim(), "REF: a b\nHYP: a x");
+    }
+
+    #[test]
+    fn visualize_alignment_mixed_all_types() {
+        let output = AlignmentOutput {
+            wer: 0.6,
+            mer: 0.5,
+            wip: 0.4,
+            wil: 0.6,
+            cer: 0.0,
+            hits: 2,
+            substitutions: 1,
+            deletions: 1,
+            insertions: 1,
+            ref_len: 4,
+            hyp_len: 4,
+            chunks: vec![
+                AlignmentChunk::Equal { text: "a".into() },
+                AlignmentChunk::Substitute {
+                    reference: "b".into(),
+                    hypothesis: "x".into(),
+                },
+                AlignmentChunk::Delete {
+                    reference: "c".into(),
+                },
+                AlignmentChunk::Equal { text: "d".into() },
+                AlignmentChunk::Insert {
+                    hypothesis: "e".into(),
+                },
+            ],
+        };
+        let viz = visualize_alignment(&output);
+        assert!(viz.contains("REF: a b c d *"));
+        assert!(viz.contains("HYP: a x * d e"));
+    }
 }
