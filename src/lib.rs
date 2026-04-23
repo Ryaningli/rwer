@@ -87,7 +87,23 @@ pub use crate::transform::{
 };
 
 #[cfg(feature = "chinese-word")]
-pub use crate::chinese::{ChineseTokenizer, chinese_wer};
+pub use crate::transform::ChineseWordSegment;
+
+#[cfg(feature = "chinese-word")]
+#[allow(deprecated)]
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `ChineseWordSegment` transform instead for pipeline-based Chinese segmentation"
+)]
+pub use crate::chinese::ChineseTokenizer;
+
+#[cfg(feature = "chinese-word")]
+#[allow(deprecated)]
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `ChineseWordSegment` transform + `process_words` instead"
+)]
+pub use crate::chinese::chinese_wer;
 
 #[cfg(feature = "chinese-variant")]
 pub use crate::transform::{ToSimplified, ToTraditional};

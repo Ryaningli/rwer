@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![cfg(feature = "chinese-word")]
 
 use rwer::{ChineseTokenizer, chinese_wer};

@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Chinese word segmentation using jieba-rs for word-level WER.
 //!
 //! This module provides a Chinese tokenizer that segments text into words
@@ -20,7 +21,13 @@
 
 use jieba_rs::Jieba;
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use ChineseWordSegment transform for pipeline-based Chinese segmentation"
+)]
 /// Chinese word tokenizer backed by jieba-rs.
+///
+/// **Deprecated:** Use [`crate::transform::ChineseWordSegment`] instead.
 pub struct ChineseTokenizer {
     jieba: Jieba,
 }
@@ -61,9 +68,13 @@ impl Default for ChineseTokenizer {
     }
 }
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use ChineseWordSegment transform + process_words instead"
+)]
 /// Compute word-level WER for Chinese text using jieba segmentation.
 ///
-/// For character-level evaluation, use [`crate::cer`] instead — no feature flag needed.
+/// **Deprecated:** Use [`crate::transform::ChineseWordSegment`] with [`crate::process_words`] instead.
 ///
 /// # Example
 ///
@@ -87,6 +98,7 @@ pub fn chinese_wer(reference: &str, hypothesis: &str) -> f64 {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
 
