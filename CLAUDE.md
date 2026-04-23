@@ -34,12 +34,25 @@ A modern Rust crate for Word Error Rate (WER), Character Error Rate (CER), and r
 
 CER works with Chinese text out of the box (grapheme-level). The `chinese-word` feature is only needed for **word-level** Chinese WER.
 
+## Release Checklist
+
+1. Update version in `Cargo.toml`
+2. Run all checks:
+   - `cargo fmt -- --check`
+   - `cargo clippy -- -D warnings`
+   - `cargo test --all-features`
+   - `cargo llvm-cov --features cli --ignore-filename-regex 'bin/' --fail-under-lines 100`
+3. Commit: `release: vX.Y.Z`
+4. Tag: `git tag vX.Y.Z`
+5. Push: `git push && git push --tags`
+6. Publish: `cargo publish` (run with `--all-features` or per-feature as needed)
+
 ## Commit Checklist
 
 - [ ] `cargo fmt`
 - [ ] `cargo clippy -- -D warnings`
 - [ ] `cargo test`
-- [ ] `cargo llvm-cov --fail-under-lines 100` (if llvm-cov available)
+- [ ] `cargo llvm-cov --features cli --ignore-filename-regex 'bin/' --fail-under-lines 100` (if llvm-cov available)
 
 ## Testing Commands
 
