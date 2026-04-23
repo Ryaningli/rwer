@@ -66,6 +66,11 @@ fn build_pipeline(cli: &Cli) -> Option<Box<dyn Transform>> {
         transforms.push(Box::new(RemoveMultipleSpaces));
     }
 
+    #[cfg(feature = "chinese-word")]
+    if cli.chinese && !cli.character {
+        transforms.push(Box::new(rwer::ChineseWordSegment::new()));
+    }
+
     if transforms.is_empty() {
         None
     } else {
@@ -89,37 +94,23 @@ fn main() {
         .map(|p| p.transform(hyp_text))
         .unwrap_or_else(|| hyp_text.to_string());
 
-    #[cfg(feature = "chinese-word")]
-    let (ref_final, hyp_final) = if cli.chinese && !cli.character {
-        let tokenizer = rwer::ChineseTokenizer::new();
-        let ref_cut = tokenizer.cut(&ref_processed);
-        let hyp_cut = tokenizer.cut(&hyp_processed);
-        let ref_words: Vec<&str> = ref_cut.iter().map(String::as_str).collect();
-        let hyp_words: Vec<&str> = hyp_cut.iter().map(String::as_str).collect();
-        (ref_words.join(" "), hyp_words.join(" "))
-    } else {
-        (ref_processed, hyp_processed)
-    };
-    #[cfg(not(feature = "chinese-word"))]
-    let (ref_final, hyp_final) = (ref_processed, hyp_processed);
-
     if cli.character {
         if cli.all || cli.alignment {
-            let output = process_chars(&ref_final, &hyp_final);
+            let output = process_chars(&ref_processed, &hyp_processed);
             println!("{output}");
             if cli.alignment {
                 println!("{}", visualize_alignment(&output));
             }
         } else {
-            println!("{:.4}", cer(&ref_final, &hyp_final));
+            println!("{:.4}", cer(&ref_processed, &hyp_processed));
         }
     } else if cli.all || cli.alignment {
-        let output = process_words(&ref_final, &hyp_final);
+        let output = process_words(&ref_processed, &hyp_processed);
         println!("{output}");
         if cli.alignment {
             println!("{}", visualize_alignment(&output));
         }
     } else {
-        println!("{:.4}", wer(&ref_final, &hyp_final));
+        println!("{:.4}", wer(&ref_processed, &hyp_processed));
     }
 }
