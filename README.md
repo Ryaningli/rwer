@@ -78,6 +78,7 @@ assert!(wer(&ref_text, &hyp_text) < 1e-10);
 | `ExpandCommonEnglishContractions` | Expand contractions (e.g., "don't" -> "do not") |
 | `ToSimplified` | Convert Traditional Chinese to Simplified Chinese (`chinese-variant` feature) |
 | `ToTraditional` | Convert Simplified Chinese to Traditional Chinese (`chinese-variant` feature) |
+| `ChineseWordSegment` | Segment Chinese text into words via jieba (`chinese-word` feature) |
 
 ## Chinese Word-Level WER
 
@@ -90,21 +91,35 @@ Chinese word segmentation via jieba-rs is enabled by default. If you want to dis
 rwer = { version = "0.1", default-features = false }
 ```
 
-```rust
-use rwer::chinese_wer;
+The recommended approach is to use `ChineseWordSegment` as a transform in the pipeline:
 
-let result = chinese_wer("今天天气真好", "今天天气很棒");
-println!("Chinese WER: {:.2}%", result * 100.0);
+```rust
+use rwer::{ChineseWordSegment, Compose, Transform, process_words, visualize_alignment};
+
+let pipeline = Compose::new(vec![Box::new(ChineseWordSegment::new())]);
+
+let ref_text = pipeline.transform("今天天气真好");
+let hyp_text = pipeline.transform("今天天气很棒");
+
+let output = process_words(&ref_text, &hyp_text);
+println!("{output}");
+println!("{}", visualize_alignment(&output));
 ```
 
-You can also use the tokenizer directly:
+You can combine Chinese segmentation with other transforms:
 
 ```rust
-use rwer::ChineseTokenizer;
+use rwer::{ChineseWordSegment, ToSimplified, Compose, Transform, process_words};
 
-let tokenizer = ChineseTokenizer::new();
-let words = tokenizer.cut("我们中出了一个叛徒");
-println!("{:?}", words);
+let pipeline = Compose::new(vec![
+    Box::new(ToSimplified),
+    Box::new(ChineseWordSegment::new()),
+]);
+
+let ref_text = pipeline.transform("今天天氣真好");
+let hyp_text = pipeline.transform("今天天气很棒");
+let output = process_words(&ref_text, &hyp_text);
+println!("WER: {:.2}%", output.wer * 100.0);
 ```
 
 ## Chinese Variant Normalization

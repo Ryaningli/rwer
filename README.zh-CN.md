@@ -78,6 +78,7 @@ assert!(wer(&ref_text, &hyp_text) < 1e-10);
 | `ExpandCommonEnglishContractions` | 展开英语缩写（如 "don't" -> "do not"） |
 | `ToSimplified` | 繁体转简体（`chinese-variant` 功能） |
 | `ToTraditional` | 简体转繁体（`chinese-variant` 功能） |
+| `ChineseWordSegment` | 中文分词，通过 jieba 将文本分割为词语（`chinese-word` 功能） |
 
 ## 中文词级 WER
 
@@ -90,21 +91,35 @@ assert!(wer(&ref_text, &hyp_text) < 1e-10);
 rwer = { version = "0.1", default-features = false }
 ```
 
-```rust
-use rwer::chinese_wer;
+推荐使用 `ChineseWordSegment` 作为预处理管道中的变换：
 
-let result = chinese_wer("今天天气真好", "今天天气很棒");
-println!("中文 WER: {:.2}%", result * 100.0);
+```rust
+use rwer::{ChineseWordSegment, Compose, Transform, process_words, visualize_alignment};
+
+let pipeline = Compose::new(vec![Box::new(ChineseWordSegment::new())]);
+
+let ref_text = pipeline.transform("今天天气真好");
+let hyp_text = pipeline.transform("今天天气很棒");
+
+let output = process_words(&ref_text, &hyp_text);
+println!("{output}");
+println!("{}", visualize_alignment(&output));
 ```
 
-也可以直接使用分词器：
+还可以将中文分词与其他变换组合使用：
 
 ```rust
-use rwer::ChineseTokenizer;
+use rwer::{ChineseWordSegment, ToSimplified, Compose, Transform, process_words};
 
-let tokenizer = ChineseTokenizer::new();
-let words = tokenizer.cut("我们中出了一个叛徒");
-println!("{:?}", words);
+let pipeline = Compose::new(vec![
+    Box::new(ToSimplified),
+    Box::new(ChineseWordSegment::new()),
+]);
+
+let ref_text = pipeline.transform("今天天氣真好");
+let hyp_text = pipeline.transform("今天天气很棒");
+let output = process_words(&ref_text, &hyp_text);
+println!("WER: {:.2}%", output.wer * 100.0);
 ```
 
 ## 中文繁简转换
