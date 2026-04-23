@@ -61,10 +61,6 @@ pub mod output;
 /// Text transform pipeline for preprocessing.
 pub mod transform;
 
-/// Chinese text segmentation using jieba-rs (feature-gated).
-#[cfg(feature = "chinese-word")]
-pub mod chinese;
-
 /// Prelude module with commonly used items.
 pub mod prelude {
     pub use crate::metrics::{cer, mer, wer, wil, wip};
@@ -89,21 +85,8 @@ pub use crate::transform::{
 #[cfg(feature = "chinese-word")]
 pub use crate::transform::ChineseWordSegment;
 
-#[cfg(feature = "chinese-word")]
-#[allow(deprecated)]
-#[deprecated(
-    since = "0.2.0",
-    note = "Use `ChineseWordSegment` transform instead for pipeline-based Chinese segmentation"
-)]
-pub use crate::chinese::ChineseTokenizer;
-
-#[cfg(feature = "chinese-word")]
-#[allow(deprecated)]
-#[deprecated(
-    since = "0.2.0",
-    note = "Use `ChineseWordSegment` transform + `process_words` instead"
-)]
-pub use crate::chinese::chinese_wer;
-
 #[cfg(feature = "chinese-variant")]
 pub use crate::transform::{ToSimplified, ToTraditional};
+
+#[cfg(feature = "cli")]
+pub mod cli;
