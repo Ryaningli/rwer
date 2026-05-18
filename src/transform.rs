@@ -92,8 +92,8 @@ impl Transform for RemovePunctuation {
 /// - Multiple consecutive spaces are collapsed into one.
 /// - A space between two CJK characters is removed entirely.
 ///
-/// **Warning:** Do not place after [`ChineseWordSegment`](super::ChineseWordSegment),
-/// as it would remove the spaces inserted by segmentation.
+/// **Warning:** Do not place after transforms that insert meaningful spaces,
+/// as it would collapse them.
 pub struct NormalizeSpaces;
 
 fn is_cjk(c: char) -> bool {
@@ -327,59 +327,6 @@ pub struct ToTraditional;
 impl Transform for ToTraditional {
     fn transform(&self, input: &str) -> String {
         zhconv::zhconv(input, zhconv::Variant::ZhHant)
-    }
-}
-
-/// Segment Chinese text into words and join with spaces.
-///
-/// Uses jieba-rs for word segmentation. This enables Chinese text to flow through
-/// the standard `process_words` pipeline as space-separated tokens.
-///
-/// This transform is only available when the `chinese-word` feature is enabled.
-///
-/// **Warning:** Do not place [`NormalizeSpaces`](super::NormalizeSpaces) or
-/// [`RemoveWhitespace`](super::RemoveWhitespace) after this transform in a pipeline,
-/// as they would remove the spaces inserted by segmentation.
-///
-/// # Examples
-///
-/// ```
-/// use rwer::transform::{ChineseWordSegment, Transform};
-///
-/// let t = ChineseWordSegment::new();
-/// let segmented = t.transform("今天天气真好");
-/// assert!(segmented.contains(' '));
-/// ```
-#[cfg(feature = "chinese-word")]
-pub struct ChineseWordSegment {
-    jieba: jieba_rs::Jieba,
-}
-
-#[cfg(feature = "chinese-word")]
-impl ChineseWordSegment {
-    /// Create a new Chinese word segmentation transform.
-    #[must_use]
-    pub fn new() -> Self {
-        Self {
-            jieba: jieba_rs::Jieba::new(),
-        }
-    }
-}
-
-#[cfg(feature = "chinese-word")]
-impl Default for ChineseWordSegment {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(feature = "chinese-word")]
-impl Transform for ChineseWordSegment {
-    fn transform(&self, input: &str) -> String {
-        if input.is_empty() {
-            return String::new();
-        }
-        self.jieba.cut(input, false).join(" ")
     }
 }
 
@@ -1015,46 +962,6 @@ mod tests {
         fn compose_with_to_simplified() {
             let pipeline = Compose::new(vec![Box::new(ToSimplified), Box::new(ToLower)]);
             assert_eq!(pipeline.transform("繁體中文"), "繁体中文");
-        }
-    }
-
-    #[cfg(feature = "chinese-word")]
-    mod chinese_word_tests {
-        use super::*;
-
-        #[test]
-        fn chinese_word_segment_basic() {
-            let t = ChineseWordSegment::new();
-            let result = t.transform("今天天气真好");
-            assert!(!result.is_empty());
-            assert!(result.contains(' '));
-        }
-
-        #[test]
-        fn chinese_word_segment_empty() {
-            let t = ChineseWordSegment::new();
-            assert_eq!(t.transform(""), "");
-        }
-
-        #[test]
-        fn chinese_word_segment_preserves_words() {
-            let t = ChineseWordSegment::new();
-            let result = t.transform("我们中出了一个叛徒");
-            assert!(result.contains("我们"));
-        }
-
-        #[test]
-        fn chinese_word_segment_default() {
-            let t = ChineseWordSegment::default();
-            let result = t.transform("你好世界");
-            assert!(!result.is_empty());
-        }
-
-        #[test]
-        fn chinese_word_segment_mixed_content() {
-            let t = ChineseWordSegment::new();
-            let result = t.transform("我喜欢rust编程");
-            assert!(!result.is_empty());
         }
     }
 }

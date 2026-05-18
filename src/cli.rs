@@ -49,11 +49,6 @@ pub struct Cli {
     #[arg(short = 'w', long)]
     pub normalize_spaces: bool,
 
-    /// Use Chinese word segmentation (requires 'chinese-word' feature)
-    #[arg(short = 'z', long)]
-    #[cfg(feature = "chinese-word")]
-    pub chinese: bool,
-
     /// Convert to Simplified Chinese before evaluation (requires 'chinese-variant' feature)
     #[arg(short = 's', long)]
     #[cfg(feature = "chinese-variant")]
@@ -82,11 +77,6 @@ pub fn build_pipeline(cli: &Cli) -> Option<Box<dyn Transform>> {
     }
     if cli.normalize_spaces {
         transforms.push(Box::new(NormalizeSpaces));
-    }
-
-    #[cfg(feature = "chinese-word")]
-    if cli.chinese && !cli.character {
-        transforms.push(Box::new(crate::ChineseWordSegment::new()));
     }
 
     if transforms.is_empty() {
@@ -166,8 +156,6 @@ mod tests {
             lowercase: false,
             remove_punctuation: false,
             normalize_spaces: false,
-            #[cfg(feature = "chinese-word")]
-            chinese: false,
             #[cfg(feature = "chinese-variant")]
             simplified: false,
         }
@@ -393,69 +381,6 @@ mod tests {
         assert_eq!(result.trim(), "0.0000");
     }
 
-    // --- Chinese word segmentation tests ---
-
-    #[cfg(feature = "chinese-word")]
-    mod chinese_tests {
-        use super::*;
-        use crate::ChineseWordSegment;
-
-        #[test]
-        fn build_pipeline_chinese_word() {
-            let cli = Cli {
-                reference: Some("今天天气真好".to_string()),
-                hypothesis: Some("今天天气很棒".to_string()),
-                character: false,
-                alignment: false,
-                all: false,
-                lowercase: false,
-                remove_punctuation: false,
-                normalize_spaces: false,
-                chinese: true,
-                #[cfg(feature = "chinese-variant")]
-                simplified: false,
-            };
-            let pipeline = build_pipeline(&cli).unwrap();
-            let result = pipeline.transform("今天天气真好");
-            assert!(result.contains(' '));
-        }
-
-        #[test]
-        fn build_pipeline_chinese_word_skipped_for_cer() {
-            let cli = Cli {
-                reference: Some("今天天气真好".to_string()),
-                hypothesis: Some("今天天气很棒".to_string()),
-                character: true,
-                alignment: false,
-                all: false,
-                lowercase: false,
-                remove_punctuation: false,
-                normalize_spaces: false,
-                chinese: true,
-                #[cfg(feature = "chinese-variant")]
-                simplified: false,
-            };
-            let pipeline = build_pipeline(&cli);
-            assert!(pipeline.is_none());
-        }
-
-        #[test]
-        fn process_and_format_chinese_wer() {
-            let input = EvalInput {
-                reference: "今天天气真好".to_string(),
-                hypothesis: "今天天气很棒".to_string(),
-                character: false,
-                alignment: false,
-                all: false,
-            };
-            let pipeline: Box<dyn Transform> = Box::new(ChineseWordSegment::new());
-            let result = process_and_format(&input, Some(pipeline.as_ref()));
-            let wer_val: f64 = result.trim().parse().unwrap();
-            assert!(wer_val > 0.0);
-            assert!(wer_val <= 1.0);
-        }
-    }
-
     // --- Chinese variant tests ---
 
     #[cfg(feature = "chinese-variant")]
@@ -474,8 +399,6 @@ mod tests {
                 lowercase: false,
                 remove_punctuation: false,
                 normalize_spaces: false,
-                #[cfg(feature = "chinese-word")]
-                chinese: false,
                 simplified: true,
             };
             let pipeline = build_pipeline(&cli).unwrap();

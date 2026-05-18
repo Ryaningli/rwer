@@ -12,7 +12,6 @@ A modern Rust crate for Word Error Rate (WER), Character Error Rate (CER), and r
 - **WIP** (Word Information Preserved): `(H/N) * (H/(H+S+D+I))`
 - **WIL** (Word Information Lost): `1 - WIP`
 - **Transform pipeline** for text preprocessing (lowercase, remove punctuation, etc.)
-- **Chinese word segmentation** via jieba-rs for word-level WER (optional feature)
 - **Alignment visualization** with error frequency analysis
 
 ## Quick Start
@@ -78,49 +77,7 @@ assert!(wer(&ref_text, &hyp_text) < 1e-10);
 | `ExpandCommonEnglishContractions` | Expand contractions (e.g., "don't" -> "do not") |
 | `ToSimplified` | Convert Traditional Chinese to Simplified Chinese (`chinese-variant` feature) |
 | `ToTraditional` | Convert Simplified Chinese to Traditional Chinese (`chinese-variant` feature) |
-| `ChineseWordSegment` | Segment Chinese text into words via jieba (`chinese-word` feature) |
 
-## Chinese Word-Level WER
-
-> **Note:** Character-level metrics (CER) work with Chinese text out of the box — no feature flag needed.
-
-Chinese word segmentation via jieba-rs is enabled by default. If you want to disable it:
-
-```toml
-[dependencies]
-rwer = { version = "0.1", default-features = false }
-```
-
-The recommended approach is to use `ChineseWordSegment` as a transform in the pipeline:
-
-```rust
-use rwer::{ChineseWordSegment, Compose, Transform, process_words, visualize_alignment};
-
-let pipeline = Compose::new(vec![Box::new(ChineseWordSegment::new())]);
-
-let ref_text = pipeline.transform("今天天气真好");
-let hyp_text = pipeline.transform("今天天气很棒");
-
-let output = process_words(&ref_text, &hyp_text);
-println!("{output}");
-println!("{}", visualize_alignment(&output));
-```
-
-You can combine Chinese segmentation with other transforms:
-
-```rust
-use rwer::{ChineseWordSegment, ToSimplified, Compose, Transform, process_words};
-
-let pipeline = Compose::new(vec![
-    Box::new(ToSimplified),
-    Box::new(ChineseWordSegment::new()),
-]);
-
-let ref_text = pipeline.transform("今天天氣真好");
-let hyp_text = pipeline.transform("今天天气很棒");
-let output = process_words(&ref_text, &hyp_text);
-println!("WER: {:.2}%", output.wer * 100.0);
-```
 
 ## Chinese Variant Normalization
 
@@ -192,7 +149,6 @@ println!("Deletions: {:?}", errors.deletions);
 
 | Feature | Description | Dependencies |
 |---------|-------------|--------------|
-| `chinese-word` | Chinese word segmentation for word-level WER (default) | `jieba-rs` |
 | `chinese-variant` | Traditional/Simplified Chinese conversion | `zhconv` |
 | `cli` | CLI binary | `clap`, `serde`, `serde_json` |
 
@@ -205,7 +161,6 @@ cargo bench
 ## Acknowledgments
 
 - [jiwer](https://github.com/jitsi/jiwer) — API design and architecture reference for WER/CER metrics
-- [jieba-rs](https://github.com/messense/jieba-rs) — Chinese word segmentation
 - [zhconv](https://github.com/nicemayi/zhconv-rs) — Traditional/Simplified Chinese conversion
 
 ## License

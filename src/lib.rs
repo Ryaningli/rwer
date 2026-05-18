@@ -40,7 +40,6 @@
 //!
 //! ## Feature Flags
 //!
-//! - `chinese-word` — Enable Chinese word segmentation using jieba-rs
 //! - `chinese-variant` — Enable Traditional/Simplified Chinese conversion using zhconv
 //! - `cli` — Enable the CLI binary
 
@@ -81,9 +80,6 @@ pub use crate::transform::{
     Compose, ExpandCommonEnglishContractions, NormalizeSpaces, RemovePunctuation,
     RemoveSpecificWords, RemoveWhitespace, Strip, SubstituteWords, ToLower, ToUpper, Transform,
 };
-
-#[cfg(feature = "chinese-word")]
-pub use crate::transform::ChineseWordSegment;
 
 #[cfg(feature = "chinese-variant")]
 pub use crate::transform::{ToSimplified, ToTraditional};
