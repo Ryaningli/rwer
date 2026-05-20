@@ -116,6 +116,19 @@ pub(crate) fn edit_distance<S: AsRef<str> + PartialEq>(reference: &[S], hypothes
     prev_row[n]
 }
 
+/// Compute Levenshtein distance between two char sequences using rapidfuzz.
+///
+/// Uses Myers bit-parallel algorithm for O([K/64]×M) complexity where K is
+/// the edit distance and M is the shorter sequence length.
+pub(crate) fn rapidfuzz_char_distance(
+    s1: impl IntoIterator<Item = char>,
+    s2: impl IntoIterator<Item = char>,
+) -> usize {
+    let v1: Vec<char> = s1.into_iter().collect();
+    let v2: Vec<char> = s2.into_iter().collect();
+    rapidfuzz::distance::levenshtein::distance(v1.iter().copied(), v2.iter().copied())
+}
+
 /// Compute the Levenshtein alignment between two token sequences.
 ///
 /// Uses a two-phase approach for performance:
@@ -719,5 +732,47 @@ mod tests {
         let ref_tokens = vec!["a", "b", "c", "d", "e"];
         let hyp_tokens = vec!["a", "x", "c", "e"];
         assert_eq!(edit_distance(&ref_tokens, &hyp_tokens), 2);
+    }
+
+    #[test]
+    fn rapidfuzz_char_distance_identical() {
+        assert_eq!(rapidfuzz_char_distance("hello".chars(), "hello".chars()), 0);
+    }
+
+    #[test]
+    fn rapidfuzz_char_distance_substitution() {
+        assert_eq!(rapidfuzz_char_distance("hello".chars(), "hallo".chars()), 1);
+    }
+
+    #[test]
+    fn rapidfuzz_char_distance_empty_both() {
+        assert_eq!(rapidfuzz_char_distance("".chars(), "".chars()), 0);
+    }
+
+    #[test]
+    fn rapidfuzz_char_distance_empty_one() {
+        assert_eq!(rapidfuzz_char_distance("abc".chars(), "".chars()), 3);
+        assert_eq!(rapidfuzz_char_distance("".chars(), "abc".chars()), 3);
+    }
+
+    #[test]
+    fn rapidfuzz_char_distance_all_different() {
+        assert_eq!(rapidfuzz_char_distance("abc".chars(), "xyz".chars()), 3);
+    }
+
+    #[test]
+    fn rapidfuzz_char_distance_unicode() {
+        assert_eq!(rapidfuzz_char_distance("你好".chars(), "你好".chars()), 0);
+        assert_eq!(rapidfuzz_char_distance("你好".chars(), "你们".chars()), 1);
+    }
+
+    #[test]
+    fn rapidfuzz_char_distance_insertion() {
+        assert_eq!(rapidfuzz_char_distance("ac".chars(), "abc".chars()), 1);
+    }
+
+    #[test]
+    fn rapidfuzz_char_distance_deletion() {
+        assert_eq!(rapidfuzz_char_distance("abc".chars(), "ac".chars()), 1);
     }
 }

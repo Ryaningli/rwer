@@ -1,7 +1,7 @@
 use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::alignment::{align, count_operations, edit_distance};
+use crate::alignment::{align, count_operations, edit_distance, rapidfuzz_char_distance};
 use crate::output::{AlignmentOutput, SplitKind, build_output};
 
 #[allow(clippy::cast_precision_loss)]
@@ -80,19 +80,6 @@ fn compute_wer_fast<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]
     to_f64(dist) / to_f64(n)
 }
 
-/// Internal WER computation from token sequences with full alignment.
-#[allow(dead_code)]
-pub(crate) fn compute_wer<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]) -> f64 {
-    let n = reference.len();
-    if n == 0 {
-        return 0.0;
-    }
-    let ops = align(reference, hypothesis);
-    let counts = count_operations(&ops);
-    let s_d_i = counts.substitutions + counts.deletions + counts.insertions;
-    to_f64(s_d_i) / to_f64(n)
-}
-
 /// Compute Character Error Rate at the Unicode grapheme cluster level.
 ///
 /// CER = (S + D + I) / N
@@ -115,7 +102,7 @@ pub fn cer(reference: &str, hypothesis: &str) -> f64 {
         if n == 0 {
             return 0.0;
         }
-        let dist = crate::alignment_fast::rapidfuzz_char_distance(ref_nfc.chars(), hyp_nfc.chars());
+        let dist = rapidfuzz_char_distance(ref_nfc.chars(), hyp_nfc.chars());
         to_f64(dist) / to_f64(n)
     } else {
         let ref_chars = split_graphemes(&ref_nfc);
@@ -495,29 +482,6 @@ mod tests {
     fn process_chars_perfect() {
         let output = process_chars("hello", "hello");
         assert_approx_eq!(output.cer, 0.0);
-    }
-
-    #[test]
-    fn compute_wer_with_string_slices() {
-        let ref_tokens: Vec<&str> = vec!["a", "b"];
-        let hyp_tokens: Vec<&str> = vec!["a", "c"];
-        let result = compute_wer(&ref_tokens, &hyp_tokens);
-        assert!((result - 0.5).abs() < 1e-10);
-    }
-
-    #[test]
-    fn compute_wer_with_strings() {
-        let ref_tokens = vec![String::from("a"), String::from("b")];
-        let hyp_tokens = vec![String::from("a"), String::from("c")];
-        let result = compute_wer(&ref_tokens, &hyp_tokens);
-        assert!((result - 0.5).abs() < 1e-10);
-    }
-
-    #[test]
-    fn compute_wer_empty_ref() {
-        let ref_tokens: Vec<&str> = vec![];
-        let hyp_tokens = vec!["a"];
-        assert_approx_eq!(compute_wer(&ref_tokens, &hyp_tokens), 0.0);
     }
 
     #[test]
