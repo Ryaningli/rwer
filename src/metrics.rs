@@ -246,8 +246,10 @@ pub fn process_words(reference: &str, hypothesis: &str) -> AlignmentOutput {
 /// ```
 #[must_use]
 pub fn process_chars(reference: &str, hypothesis: &str) -> AlignmentOutput {
-    let ref_chars = split_graphemes(reference);
-    let hyp_chars = split_graphemes(hypothesis);
+    let ref_nfc: String = reference.nfc().collect();
+    let hyp_nfc: String = hypothesis.nfc().collect();
+    let ref_chars = split_graphemes(&ref_nfc);
+    let hyp_chars = split_graphemes(&hyp_nfc);
     let ops = align(&ref_chars, &hyp_chars);
     let counts = count_operations(&ops);
     build_output(&ref_chars, &hyp_chars, &ops, &counts, SplitKind::Graphemes)
@@ -641,5 +643,27 @@ mod tests {
     fn cer_various_substitutions() {
         let result = cer("你好世界", "你们世纪");
         assert!((result - 0.5).abs() < 1e-10);
+    }
+
+    #[test]
+    fn process_chars_nfc_normalization() {
+        let output = process_chars("\u{00E9}bc", "e\u{0301}bc");
+        assert_approx_eq!(output.cer, 0.0);
+        assert_eq!(output.hits, 3);
+    }
+
+    #[test]
+    fn process_chars_emoji_fallback() {
+        let output = process_chars("👨‍👩‍👧", "👨‍👩‍👦");
+        assert!((output.cer - 1.0).abs() < 1e-10);
+        assert_eq!(output.substitutions, 1);
+    }
+
+    #[test]
+    fn process_chars_cjk() {
+        let output = process_chars("你好世界", "你们世纪");
+        assert!((output.cer - 0.5).abs() < 1e-10);
+        assert_eq!(output.substitutions, 2);
+        assert_eq!(output.hits, 2);
     }
 }
