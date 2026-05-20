@@ -18,7 +18,7 @@
 //! ## Metrics
 //!
 //! - **WER** (Word Error Rate): `(S + D + I) / N`
-//! - **CER** (Character Error Rate): Same formula at Unicode grapheme cluster level
+//! - **CER** (Character Error Rate): Same formula at Unicode grapheme cluster level, with NFC normalization for consistent results
 //! - **MER** (Match Error Rate): `(S + D + I) / (H + S + D + I)`
 //! - **WIP** (Word Information Preserved): `(H/N) * (H/(H+S+D+I))`
 //! - **WIL** (Word Information Lost): `1 - WIP`
