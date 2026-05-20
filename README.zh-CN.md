@@ -161,6 +161,54 @@ println!("删除: {:?}", errors.deletions);
 | `chinese-variant` | 中文繁简转换 | `zhconv` |
 | `cli` | 命令行工具 | `clap`, `serde`, `serde_json` |
 
+## JavaScript / WebAssembly
+
+rwer 也提供 WebAssembly 包，可在浏览器和 Node.js 中使用：
+
+```bash
+npm install rwer
+```
+
+```js
+import * as rwer from "rwer";
+
+// 浏览器
+await rwer.default();
+
+// Node.js
+import { readFileSync } from "node:fs";
+rwer.initSync({ module: readFileSync("node_modules/rwer/rwer_bg.wasm") });
+
+console.log(rwer.wer("the cat sat", "the dog sat")); // 0.333...
+console.log(rwer.cer("hello", "hallo"));             // 0.2
+
+const output = rwer.process_words("the cat sat", "the dog sat");
+console.log(output.wer);           // 0.333...
+console.log(output.hits);          // 2
+console.log(output.substitutions); // 1
+console.log(output.chunks());      // [{kind:"equal",...}, {kind:"substitute",...}]
+console.log(output.visualize());   // REF: the cat sat\nHYP: the dog sat
+```
+
+### 从源码构建
+
+```bash
+# 安装 wasm-pack
+cargo install wasm-pack
+
+# 构建
+cd js && npm run build:wasm
+
+# 或手动构建
+wasm-pack build crates/rwer-wasm --target web --out-dir ../../pkg --out-name rwer
+```
+
+### 运行 JS 测试
+
+```bash
+cd js && npm test
+```
+
 ## 基准测试
 
 ```bash

@@ -11,6 +11,7 @@ A modern Rust crate for Word Error Rate (WER), Character Error Rate (CER), and r
 - **Documentation** — all public items must have doc comments with examples
 - **Internationalized docs** — README.md in English (default) + README.zh-CN.md (Chinese)
 - **Feature gates** — `chinese-variant` feature for zhconv Traditional/Simplified conversion, `cli` feature for binary
+- **WASM bindings** — `crates/rwer-wasm` with wasm-bindgen, builds with `wasm-pack`
 - **No unwraps in library code** — use `Result`/`Option` properly
 
 ## Architecture
@@ -28,6 +29,14 @@ A modern Rust crate for Word Error Rate (WER), Character Error Rate (CER), and r
 | `transform` | `Transform` trait, `Compose`, `ToLower`, `RemovePunctuation`, etc. |
 | `output` | `AlignmentOutput`, `AlignmentChunk`, `visualize_alignment()`, error analysis |
 
+## Workspace Structure
+
+The project uses a Cargo workspace:
+
+- **Root** (`rwer`) — core library + CLI binary
+- **`crates/rwer-wasm`** — WebAssembly bindings for JavaScript (`rwer-wasm` crate, published as `rwer` on npm)
+- **`js/`** — JS integration tests and examples
+- **`pkg/`** — wasm-pack build output (gitignored)
 
 ## Release Checklist
 
@@ -40,6 +49,7 @@ A modern Rust crate for Word Error Rate (WER), Character Error Rate (CER), and r
 3. Commit: `release: vX.Y.Z`
 4. Tag: `git tag vX.Y.Z`
 5. Push: `git push && git push --tags` — GitHub Actions will auto-publish to crates.io on tag push
+6. Publish npm: `cd js && npm run build:wasm && cd ../pkg && npm publish`
 
 ## Commit Checklist
 

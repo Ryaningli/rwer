@@ -162,6 +162,54 @@ println!("Deletions: {:?}", errors.deletions);
 | `chinese-variant` | Traditional/Simplified Chinese conversion | `zhconv` |
 | `cli` | CLI binary | `clap`, `serde`, `serde_json` |
 
+## JavaScript / WebAssembly
+
+rwer is also available as a WebAssembly package for browser and Node.js:
+
+```bash
+npm install rwer
+```
+
+```js
+import * as rwer from "rwer";
+
+// Browser
+await rwer.default();
+
+// Node.js
+import { readFileSync } from "node:fs";
+rwer.initSync({ module: readFileSync("node_modules/rwer/rwer_bg.wasm") });
+
+console.log(rwer.wer("the cat sat", "the dog sat")); // 0.333...
+console.log(rwer.cer("hello", "hallo"));             // 0.2
+
+const output = rwer.process_words("the cat sat", "the dog sat");
+console.log(output.wer);           // 0.333...
+console.log(output.hits);          // 2
+console.log(output.substitutions); // 1
+console.log(output.chunks());      // [{kind:"equal",...}, {kind:"substitute",...}]
+console.log(output.visualize());   // REF: the cat sat\nHYP: the dog sat
+```
+
+### Build from source
+
+```bash
+# Install wasm-pack
+cargo install wasm-pack
+
+# Build
+cd js && npm run build:wasm
+
+# Or manually
+wasm-pack build crates/rwer-wasm --target web --out-dir ../../pkg --out-name rwer
+```
+
+### Run JS tests
+
+```bash
+cd js && npm test
+```
+
 ## Benchmarks
 
 ```bash

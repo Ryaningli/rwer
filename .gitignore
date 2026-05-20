@@ -2,3 +2,7 @@
 /docs/superpowers
 Cargo.lock
 .claude/
+
+# WASM/JS build artifacts
+pkg/
+node_modules/
