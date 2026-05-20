@@ -166,18 +166,18 @@ println!("删除: {:?}", errors.deletions);
 rwer 也提供 WebAssembly 包，可在浏览器和 Node.js 中使用：
 
 ```bash
-npm install rwer
+npm install @ryaningli/rwer
 ```
 
 ```js
-import * as rwer from "rwer";
+import * as rwer from "@ryaningli/rwer";
 
 // 浏览器
 await rwer.default();
 
 // Node.js
 import { readFileSync } from "node:fs";
-rwer.initSync({ module: readFileSync("node_modules/rwer/rwer_bg.wasm") });
+rwer.initSync({ module: readFileSync("node_modules/@ryaningli/rwer/rwer_bg.wasm") });
 
 console.log(rwer.wer("the cat sat", "the dog sat")); // 0.333...
 console.log(rwer.cer("hello", "hallo"));             // 0.2

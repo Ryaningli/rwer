@@ -49,7 +49,7 @@ The project uses a Cargo workspace:
 3. Commit: `release: vX.Y.Z`
 4. Tag: `git tag vX.Y.Z`
 5. Push: `git push && git push --tags` — GitHub Actions will auto-publish to crates.io on tag push
-6. Publish npm: `cd js && npm run build:wasm && cd ../pkg && npm publish`
+6. Publish npm: `cd js && npm run build:wasm && cd ../pkg && npm publish --access public`
 
 ## Commit Checklist
 

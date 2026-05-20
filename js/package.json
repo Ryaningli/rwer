@@ -4,6 +4,6 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/api.test.mjs",
-    "build:wasm": "cd .. && wasm-pack build crates/rwer-wasm --target web --out-dir ../../pkg --out-name rwer && node -e \"const f='pkg/package.json',p=JSON.parse(require('fs').readFileSync(f,'utf8'));p.name='rwer';require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\\n')\""
+    "build:wasm": "cd .. && wasm-pack build crates/rwer-wasm --target web --out-dir ../../pkg --out-name rwer && node -e \"const fs=require('fs');const f='pkg/package.json',p=JSON.parse(fs.readFileSync(f,'utf8'));p.name='@ryaningli/rwer';p.keywords=['wer','cer','asr','nlp','speech-recognition','edit-distance','wasm','webassembly'];fs.writeFileSync(f,JSON.stringify(p,null,2)+'\\n');fs.copyFileSync('README.md','pkg/README.md')\""
   }
 }

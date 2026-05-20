@@ -167,18 +167,18 @@ println!("Deletions: {:?}", errors.deletions);
 rwer is also available as a WebAssembly package for browser and Node.js:
 
 ```bash
-npm install rwer
+npm install @ryaningli/rwer
 ```
 
 ```js
-import * as rwer from "rwer";
+import * as rwer from "@ryaningli/rwer";
 
 // Browser
 await rwer.default();
 
 // Node.js
 import { readFileSync } from "node:fs";
-rwer.initSync({ module: readFileSync("node_modules/rwer/rwer_bg.wasm") });
+rwer.initSync({ module: readFileSync("node_modules/@ryaningli/rwer/rwer_bg.wasm") });
 
 console.log(rwer.wer("the cat sat", "the dog sat")); // 0.333...
 console.log(rwer.cer("hello", "hallo"));             // 0.2
