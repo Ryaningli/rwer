@@ -33,9 +33,9 @@ fn cer_emoji() {
 
 #[test]
 fn cer_composed_vs_decomposed() {
-    // N=1, S=1 → CER = 1/1 = 1.0
+    // NFC normalization makes both forms identical → CER = 0.0
     let result = cer("\u{00E9}", "e\u{0301}");
-    assert!((result - 1.0).abs() < 1e-10);
+    assert!(result < 1e-10);
 }
 
 #[test]

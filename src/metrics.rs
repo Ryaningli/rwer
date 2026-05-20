@@ -1,3 +1,4 @@
+use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::alignment::{align, count_operations, edit_distance};
@@ -15,6 +16,10 @@ fn split_words(text: &str) -> Vec<&str> {
 
 fn split_graphemes(text: &str) -> Vec<&str> {
     text.graphemes(true).collect()
+}
+
+fn is_all_single_char_graphemes(text: &str) -> bool {
+    text.graphemes(true).all(|g| g.chars().count() == 1)
 }
 
 /// Compute Word Error Rate between reference and hypothesis strings.
@@ -102,9 +107,21 @@ pub(crate) fn compute_wer<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis
 /// ```
 #[must_use]
 pub fn cer(reference: &str, hypothesis: &str) -> f64 {
-    let ref_chars = split_graphemes(reference);
-    let hyp_chars = split_graphemes(hypothesis);
-    compute_wer_fast(&ref_chars, &hyp_chars)
+    let ref_nfc: String = reference.nfc().collect();
+    let hyp_nfc: String = hypothesis.nfc().collect();
+
+    if is_all_single_char_graphemes(&ref_nfc) && is_all_single_char_graphemes(&hyp_nfc) {
+        let n = ref_nfc.chars().count();
+        if n == 0 {
+            return 0.0;
+        }
+        let dist = crate::alignment_fast::rapidfuzz_char_distance(ref_nfc.chars(), hyp_nfc.chars());
+        to_f64(dist) / to_f64(n)
+    } else {
+        let ref_chars = split_graphemes(&ref_nfc);
+        let hyp_chars = split_graphemes(&hyp_nfc);
+        compute_wer_fast(&ref_chars, &hyp_chars)
+    }
 }
 
 /// Compute Match Error Rate.
@@ -350,9 +367,10 @@ mod tests {
     }
 
     #[test]
-    fn cer_grapheme_cluster() {
+    fn cer_grapheme_cluster_nfc_normalized() {
+        // After NFC, both forms of é become U+00E9, so CER = 0
         let result = cer("\u{00E9}", "e\u{0301}");
-        assert!((result - 1.0).abs() < 1e-10);
+        assert_approx_eq!(result, 0.0);
     }
 
     #[test]
@@ -563,5 +581,65 @@ mod tests {
             process_words(ref_text, hyp_text).wer
         );
         assert!((cer(ref_text, hyp_text) - process_chars(ref_text, hyp_text).cer).abs() < 1e-10);
+    }
+
+    #[test]
+    fn cer_nfc_combining_chars_normalized() {
+        let result = cer("\u{00E9}", "\u{00E9}");
+        assert_approx_eq!(result, 0.0);
+    }
+
+    #[test]
+    fn cer_nfc_cjk_identical() {
+        let result = cer("你好世界", "你好世界");
+        assert_approx_eq!(result, 0.0);
+    }
+
+    #[test]
+    fn cer_nfc_cjk_with_error() {
+        let result = cer("你好世界", "你们世界");
+        assert!((result - 0.25).abs() < 1e-10);
+    }
+
+    #[test]
+    fn cer_nfc_long_cjk() {
+        let ref_text = "今天天气真好我们可以出去玩".repeat(100);
+        let hyp_text = "今天天气真好人我们可以出去玩".repeat(100);
+        let n_chars = ref_text.chars().count();
+        let expected = 100.0 / n_chars as f64;
+        assert!((cer(&ref_text, &hyp_text) - expected).abs() < 1e-10);
+    }
+
+    #[test]
+    fn cer_emoji_fallback() {
+        let result = cer("👨‍👩‍👧", "👨‍👩‍👧");
+        assert_approx_eq!(result, 0.0);
+    }
+
+    #[test]
+    fn cer_emoji_with_substitution() {
+        let result = cer("👨‍👩‍👧", "👨‍👩‍👦");
+        assert!((result - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn cer_mixed_emoji_and_cjk() {
+        let result = cer("你好👋", "你好👋");
+        assert_approx_eq!(result, 0.0);
+    }
+
+    #[test]
+    fn cer_mixed_emoji_with_error() {
+        // "你好👋世界" = 5 graphemes: 你,好,👋,世,界
+        // "你好🌍世界" = 5 graphemes: 你,好,🌍,世,界
+        // 1 substitution / 5 = 0.2
+        let result = cer("你好👋世界", "你好🌍世界");
+        assert!((result - 0.2).abs() < 1e-10);
+    }
+
+    #[test]
+    fn cer_various_substitutions() {
+        let result = cer("你好世界", "你们世纪");
+        assert!((result - 0.5).abs() < 1e-10);
     }
 }

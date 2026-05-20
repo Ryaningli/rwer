@@ -24,6 +24,7 @@ cli = ["dep:clap", "dep:serde", "dep:serde_json"]
 
 [dependencies]
 unicode-segmentation = "1.13"
+unicode-normalization = "0.1"
 rapidfuzz = "0.5"
 clap = { version = "4", features = ["derive"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
