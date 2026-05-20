@@ -85,9 +85,46 @@ pub fn count_operations(ops: &[EditOp]) -> OperationCounts {
     counts
 }
 
-/// Compute the Levenshtein alignment between two token sequences using the Wagner-Fischer algorithm.
+/// Compute the Levenshtein edit distance between two token sequences.
 ///
-/// Returns a vector of [`EditOp`] representing the optimal alignment.
+/// Uses single-row dynamic programming for O(min(M,N)) space complexity.
+pub(crate) fn edit_distance<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]) -> usize {
+    let m = reference.len();
+    let n = hypothesis.len();
+
+    if m == 0 {
+        return n;
+    }
+    if n == 0 {
+        return m;
+    }
+
+    let mut prev_row: Vec<usize> = (0..=n).collect();
+    let mut curr_row = vec![0; n + 1];
+
+    for i in 1..=m {
+        curr_row[0] = i;
+        for j in 1..=n {
+            let cost = usize::from(reference[i - 1] != hypothesis[j - 1]);
+            curr_row[j] = (prev_row[j] + 1)
+                .min(curr_row[j - 1] + 1)
+                .min(prev_row[j - 1] + cost);
+        }
+        std::mem::swap(&mut prev_row, &mut curr_row);
+    }
+
+    prev_row[n]
+}
+
+/// Compute the Levenshtein alignment between two token sequences.
+///
+/// Uses a two-phase approach for performance:
+/// 1. Compute total edit distance using single-row DP
+/// 2. Run banded Wagner-Fischer (diagonal ± distance band) for traceback
+///
+/// The band width is derived from the precomputed distance, making this
+/// much faster than full O(M×N) Wagner-Fischer when the distance is small
+/// relative to the sequence lengths.
 ///
 /// # Examples
 ///
@@ -111,7 +148,25 @@ pub fn align<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]) -> Ve
         return (0..m).map(|i| EditOp::Delete { ref_index: i }).collect();
     }
 
-    // DP table: dist[i][j] = edit distance between ref[..i] and hyp[..j]
+    let dist = edit_distance(reference, hypothesis);
+
+    if dist == 0 {
+        return (0..m).map(|i| EditOp::Equal { index: i }).collect();
+    }
+
+    // Use full WF when banded approach won't save work
+    if dist >= m + n {
+        return align_full(reference, hypothesis);
+    }
+
+    align_banded(reference, hypothesis, dist)
+}
+
+/// Full Wagner-Fischer alignment (fallback for edge cases).
+fn align_full<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]) -> Vec<EditOp> {
+    let m = reference.len();
+    let n = hypothesis.len();
+
     let mut dist = vec![vec![0usize; n + 1]; m + 1];
     for (i, row) in dist.iter_mut().enumerate().take(m + 1) {
         row[0] = i;
@@ -128,7 +183,6 @@ pub fn align<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]) -> Ve
         }
     }
 
-    // Backtrack to reconstruct alignment
     let mut ops = Vec::with_capacity(m + n);
     let (mut i, mut j) = (m, n);
     while i > 0 || j > 0 {
@@ -149,6 +203,161 @@ pub fn align<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]) -> Ve
         } else {
             ops.push(EditOp::Delete { ref_index: i - 1 });
             i -= 1;
+        }
+    }
+    ops.reverse();
+    ops
+}
+
+/// Banded Wagner-Fischer alignment.
+///
+/// Only computes DP cells within a band of width `(2 * dist + 1)` centered
+/// on the main diagonal. This reduces time and space from O(M×N) to O(M×D)
+/// where D is the edit distance.
+fn align_banded<S: AsRef<str> + PartialEq>(
+    reference: &[S],
+    hypothesis: &[S],
+    dist: usize,
+) -> Vec<EditOp> {
+    let ref_len = reference.len();
+    let hyp_len = hypothesis.len();
+
+    let band = dist;
+    let lo = |row: usize| row.saturating_sub(band);
+    let hi = |row: usize| std::cmp::min(hyp_len, row + band);
+
+    let rows = build_banded_dp(reference, hypothesis, ref_len, &lo, &hi);
+    backtrack_banded(reference, hypothesis, ref_len, hyp_len, &rows, &lo, &hi)
+}
+
+/// Build the banded DP table for Wagner-Fischer.
+fn build_banded_dp<S: AsRef<str> + PartialEq>(
+    reference: &[S],
+    hypothesis: &[S],
+    ref_len: usize,
+    lo: &dyn Fn(usize) -> usize,
+    hi: &dyn Fn(usize) -> usize,
+) -> Vec<Vec<usize>> {
+    let mut rows: Vec<Vec<usize>> = Vec::with_capacity(ref_len + 1);
+
+    // Row 0
+    {
+        let lo_val = lo(0);
+        let hi_val = hi(0);
+        let mut row = vec![0; hi_val - lo_val + 1];
+        for (idx, val) in row.iter_mut().enumerate() {
+            *val = lo_val + idx;
+        }
+        rows.push(row);
+    }
+
+    // Rows 1..=ref_len
+    for ref_idx in 1..=ref_len {
+        let lo_val = lo(ref_idx);
+        let hi_val = hi(ref_idx);
+        let width = hi_val - lo_val + 1;
+        let mut row = vec![0; width];
+
+        let prev_lo = lo(ref_idx - 1);
+        let prev_hi = hi(ref_idx - 1);
+
+        for hyp_idx in lo_val..=hi_val {
+            let local_j = hyp_idx - lo_val;
+
+            if hyp_idx == 0 {
+                row[local_j] = ref_idx;
+                continue;
+            }
+
+            let diag = if hyp_idx > prev_lo && hyp_idx - 1 <= prev_hi {
+                Some(rows[ref_idx - 1][hyp_idx - 1 - prev_lo])
+            } else {
+                None
+            };
+
+            let up = if hyp_idx >= prev_lo && hyp_idx <= prev_hi {
+                Some(rows[ref_idx - 1][hyp_idx - prev_lo] + 1)
+            } else {
+                None
+            };
+
+            let left = if hyp_idx > lo_val {
+                Some(row[local_j - 1] + 1)
+            } else {
+                None
+            };
+
+            let cost = usize::from(reference[ref_idx - 1] != hypothesis[hyp_idx - 1]);
+            let diag_val = diag.map(|d| d + cost);
+
+            row[local_j] = up
+                .into_iter()
+                .chain(left)
+                .chain(diag_val)
+                .min()
+                .unwrap_or(ref_idx + hyp_idx);
+        }
+
+        rows.push(row);
+    }
+
+    rows
+}
+
+/// Backtrack through the banded DP table to reconstruct the alignment.
+fn backtrack_banded<S: AsRef<str> + PartialEq>(
+    reference: &[S],
+    hypothesis: &[S],
+    ref_len: usize,
+    hyp_len: usize,
+    rows: &[Vec<usize>],
+    lo: &dyn Fn(usize) -> usize,
+    hi: &dyn Fn(usize) -> usize,
+) -> Vec<EditOp> {
+    let mut ops = Vec::with_capacity(ref_len + hyp_len);
+    let (mut ref_pos, mut hyp_pos) = (ref_len, hyp_len);
+
+    while ref_pos > 0 || hyp_pos > 0 {
+        let lo_val = lo(ref_pos);
+        let cur_val = if hyp_pos >= lo_val && hyp_pos <= hi(ref_pos) {
+            Some(rows[ref_pos][hyp_pos - lo_val])
+        } else {
+            None
+        };
+
+        if ref_pos > 0 && hyp_pos > 0 && reference[ref_pos - 1] == hypothesis[hyp_pos - 1] {
+            ops.push(EditOp::Equal { index: ref_pos - 1 });
+            ref_pos -= 1;
+            hyp_pos -= 1;
+        } else if let Some(cv) = cur_val {
+            let prev_lo = lo(ref_pos.saturating_sub(1));
+            let prev_hi = if ref_pos > 0 { hi(ref_pos - 1) } else { 0 };
+
+            let diag_ok = ref_pos > 0
+                && hyp_pos > 0
+                && hyp_pos > prev_lo
+                && hyp_pos - 1 <= prev_hi
+                && cv == rows[ref_pos - 1][hyp_pos - 1 - prev_lo] + 1;
+            let left_ok =
+                hyp_pos > lo_val && cv == rows[ref_pos][hyp_pos - 1 - lo_val] + 1;
+
+            if diag_ok {
+                ops.push(EditOp::Substitute {
+                    ref_index: ref_pos - 1,
+                    hyp_index: hyp_pos - 1,
+                });
+                ref_pos -= 1;
+                hyp_pos -= 1;
+            } else if left_ok {
+                ops.push(EditOp::Insert { hyp_index: hyp_pos - 1 });
+                hyp_pos -= 1;
+            } else {
+                ops.push(EditOp::Delete { ref_index: ref_pos - 1 });
+                ref_pos -= 1;
+            }
+        } else {
+            ops.push(EditOp::Delete { ref_index: ref_pos - 1 });
+            ref_pos -= 1;
         }
     }
     ops.reverse();
@@ -324,11 +533,11 @@ mod tests {
         let hyp_tokens = vec!["a", "x", "c", "d", "e"];
         let ops = align(&ref_tokens, &hyp_tokens);
         assert_eq!(ops.len(), 5);
-        assert!(ops[0].is_equal()); // a
-        assert!(ops[1].is_substitute()); // b → x
-        assert!(ops[2].is_equal()); // c
-        assert!(ops[3].is_equal()); // d
-        assert!(ops[4].is_insert()); // e
+        assert!(ops[0].is_equal());
+        assert!(ops[1].is_substitute());
+        assert!(ops[2].is_equal());
+        assert!(ops[3].is_equal());
+        assert!(ops[4].is_insert());
     }
 
     #[test]
@@ -435,5 +644,39 @@ mod tests {
         let ops = align(&ref_tokens, &hyp_tokens);
         assert_eq!(ops.len(), 2);
         assert!(ops.iter().all(EditOp::is_equal));
+    }
+
+    // --- New tests for banded alignment ---
+
+    #[test]
+    fn edit_distance_basic() {
+        let ref_tokens = vec!["hello", "world"];
+        let hyp_tokens = vec!["hello", "earth"];
+        assert_eq!(edit_distance(&ref_tokens, &hyp_tokens), 1);
+    }
+
+    #[test]
+    fn edit_distance_identical() {
+        let ref_tokens = vec!["a", "b", "c"];
+        assert_eq!(edit_distance(&ref_tokens, &ref_tokens), 0);
+    }
+
+    #[test]
+    fn edit_distance_empty() {
+        assert_eq!(edit_distance::<&str>(&[], &[]), 0);
+        assert_eq!(edit_distance::<&str>(&[], &["a"]), 1);
+        assert_eq!(edit_distance::<&str>(&["a"], &[]), 1);
+    }
+
+    #[test]
+    fn align_large_banded() {
+        // Test with enough tokens that banded path is taken
+        let ref_tokens: Vec<String> = (0..100).map(|i| format!("word{i}")).collect();
+        let mut hyp_tokens = ref_tokens.clone();
+        hyp_tokens[50] = "changed".to_string();
+        let ops = align(&ref_tokens, &hyp_tokens);
+        let counts = count_operations(&ops);
+        assert_eq!(counts.hits, 99);
+        assert_eq!(counts.substitutions, 1);
     }
 }
