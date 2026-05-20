@@ -1,6 +1,6 @@
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::alignment::{align, count_operations};
+use crate::alignment::{align, count_operations, edit_distance};
 use crate::output::{AlignmentOutput, SplitKind, build_output};
 
 #[allow(clippy::cast_precision_loss)]
@@ -35,7 +35,7 @@ fn split_graphemes(text: &str) -> Vec<&str> {
 pub fn wer(reference: &str, hypothesis: &str) -> f64 {
     let ref_words = split_words(reference);
     let hyp_words = split_words(hypothesis);
-    compute_wer(&ref_words, &hyp_words)
+    compute_wer_fast(&ref_words, &hyp_words)
 }
 
 /// Compute WER for multiple sentence pairs (flattened).
@@ -62,10 +62,21 @@ pub fn wer_sentences(ref_sentences: &[&str], hyp_sentences: &[&str]) -> f64 {
         .iter()
         .flat_map(|s| s.split_whitespace())
         .collect();
-    compute_wer(&all_ref, &all_hyp)
+    compute_wer_fast(&all_ref, &all_hyp)
 }
 
-/// Internal WER computation from token sequences.
+/// Fast distance-only WER computation.
+fn compute_wer_fast<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]) -> f64 {
+    let n = reference.len();
+    if n == 0 {
+        return 0.0;
+    }
+    let dist = edit_distance(reference, hypothesis);
+    to_f64(dist) / to_f64(n)
+}
+
+/// Internal WER computation from token sequences with full alignment.
+#[allow(dead_code)]
 pub(crate) fn compute_wer<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]) -> f64 {
     let n = reference.len();
     if n == 0 {
@@ -93,7 +104,7 @@ pub(crate) fn compute_wer<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis
 pub fn cer(reference: &str, hypothesis: &str) -> f64 {
     let ref_chars = split_graphemes(reference);
     let hyp_chars = split_graphemes(hypothesis);
-    compute_wer(&ref_chars, &hyp_chars)
+    compute_wer_fast(&ref_chars, &hyp_chars)
 }
 
 /// Compute Match Error Rate.
@@ -229,7 +240,6 @@ pub fn process_chars(reference: &str, hypothesis: &str) -> AlignmentOutput {
 mod tests {
     use super::*;
 
-    /// Assert two f64 values are approximately equal.
     fn approx_eq(a: f64, b: f64) -> bool {
         (a - b).abs() < 1e-10
     }
@@ -245,8 +255,6 @@ mod tests {
         };
     }
 
-    // === WER tests ===
-
     #[test]
     fn wer_perfect_match() {
         assert_approx_eq!(wer("hello world", "hello world"), 0.0);
@@ -260,14 +268,12 @@ mod tests {
 
     #[test]
     fn wer_with_deletion() {
-        // N=3, D=1 → WER = 1/3
         let result = wer("the cat sat", "the sat");
         assert!((result - 1.0 / 3.0).abs() < 1e-10);
     }
 
     #[test]
     fn wer_with_insertion() {
-        // N=2, I=1 → WER = 1/2
         let result = wer("the sat", "the cat sat");
         assert!((result - 0.5).abs() < 1e-10);
     }
@@ -290,9 +296,6 @@ mod tests {
 
     #[test]
     fn wer_multiple_sentences() {
-        // ref: "the cat sat the dog ran" (6 words)
-        // hyp: "the cat sat the dog walked" (6 words)
-        // N=6, S=1 → WER = 1/6
         let ref_sents = ["the cat sat", "the dog ran"];
         let hyp_sents = ["the cat sat", "the dog walked"];
         let result = wer_sentences(&ref_sents, &hyp_sents);
@@ -311,11 +314,8 @@ mod tests {
 
     #[test]
     fn wer_single_word_mismatch() {
-        // N=1, S=1 → WER = 1/1 = 1.0
         assert!((wer("hello", "world") - 1.0).abs() < 1e-10);
     }
-
-    // === CER tests ===
 
     #[test]
     fn cer_perfect_match() {
@@ -324,7 +324,6 @@ mod tests {
 
     #[test]
     fn cer_with_substitution() {
-        // N=5, S=1 → CER = 1/5
         let result = cer("abcde", "axcde");
         assert!((result - 0.2).abs() < 1e-10);
     }
@@ -341,7 +340,6 @@ mod tests {
 
     #[test]
     fn cer_empty_hypothesis() {
-        // N=3, D=3 → CER = 3/3 = 1.0
         let result = cer("abc", "");
         assert!((result - 1.0).abs() < 1e-10);
     }
@@ -353,7 +351,6 @@ mod tests {
 
     #[test]
     fn cer_grapheme_cluster() {
-        // Both are 1 grapheme, S=1 → CER = 1/1 = 1.0
         let result = cer("\u{00E9}", "e\u{0301}");
         assert!((result - 1.0).abs() < 1e-10);
     }
@@ -366,12 +363,9 @@ mod tests {
 
     #[test]
     fn cer_deletion() {
-        // N=3, D=1 → CER = 1/3
         let result = cer("abc", "ac");
         assert!((result - 1.0 / 3.0).abs() < 1e-10);
     }
-
-    // === MER tests ===
 
     #[test]
     fn mer_perfect_match() {
@@ -394,8 +388,6 @@ mod tests {
     fn mer_empty_both() {
         assert_approx_eq!(mer("", ""), 0.0);
     }
-
-    // === WIP / WIL tests ===
 
     #[test]
     fn wip_perfect_match() {
@@ -437,14 +429,10 @@ mod tests {
         assert_approx_eq!(wil("", ""), 0.0);
     }
 
-    // === process_words tests ===
-
     #[test]
     fn process_words_returns_output() {
         let output = process_words("the cat sat", "the cat sat on");
-        // N=3, I=1 → WER = 1/3
         assert!((output.wer - 1.0 / 3.0).abs() < 1e-10);
-        // MER = 1/(3+0+0+1) = 0.25
         assert!((output.mer - 0.25).abs() < 1e-10);
         assert!((output.wip - 0.75).abs() < 1e-10);
         assert!((output.wil - 0.25).abs() < 1e-10);
@@ -470,12 +458,9 @@ mod tests {
         assert_eq!(output.hits, 3);
     }
 
-    // === process_chars tests ===
-
     #[test]
     fn process_chars_returns_output() {
         let output = process_chars("abcde", "axcde");
-        // N=5, S=1 → CER = 1/5
         assert!((output.cer - 0.2).abs() < 1e-10);
         assert!((output.wer - 0.2).abs() < 1e-10);
     }
@@ -492,13 +477,10 @@ mod tests {
         assert_approx_eq!(output.cer, 0.0);
     }
 
-    // === Internal compute_wer tests ===
-
     #[test]
     fn compute_wer_with_string_slices() {
         let ref_tokens: Vec<&str> = vec!["a", "b"];
         let hyp_tokens: Vec<&str> = vec!["a", "c"];
-        // N=2, S=1 → WER = 1/2
         let result = compute_wer(&ref_tokens, &hyp_tokens);
         assert!((result - 0.5).abs() < 1e-10);
     }
@@ -570,5 +552,16 @@ mod tests {
         let output = process_chars("abc", "axc");
         let display = format!("{output}");
         assert!(display.contains("CER:"));
+    }
+
+    #[test]
+    fn wer_cer_consistency_with_process() {
+        let ref_text = "the quick brown fox jumps";
+        let hyp_text = "the slow brown fox jumped";
+        assert_eq!(
+            wer(ref_text, hyp_text),
+            process_words(ref_text, hyp_text).wer
+        );
+        assert!((cer(ref_text, hyp_text) - process_chars(ref_text, hyp_text).cer).abs() < 1e-10);
     }
 }

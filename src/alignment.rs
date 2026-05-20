@@ -338,8 +338,7 @@ fn backtrack_banded<S: AsRef<str> + PartialEq>(
                 && hyp_pos > prev_lo
                 && hyp_pos - 1 <= prev_hi
                 && cv == rows[ref_pos - 1][hyp_pos - 1 - prev_lo] + 1;
-            let left_ok =
-                hyp_pos > lo_val && cv == rows[ref_pos][hyp_pos - 1 - lo_val] + 1;
+            let left_ok = hyp_pos > lo_val && cv == rows[ref_pos][hyp_pos - 1 - lo_val] + 1;
 
             if diag_ok {
                 ops.push(EditOp::Substitute {
@@ -349,14 +348,20 @@ fn backtrack_banded<S: AsRef<str> + PartialEq>(
                 ref_pos -= 1;
                 hyp_pos -= 1;
             } else if left_ok {
-                ops.push(EditOp::Insert { hyp_index: hyp_pos - 1 });
+                ops.push(EditOp::Insert {
+                    hyp_index: hyp_pos - 1,
+                });
                 hyp_pos -= 1;
             } else {
-                ops.push(EditOp::Delete { ref_index: ref_pos - 1 });
+                ops.push(EditOp::Delete {
+                    ref_index: ref_pos - 1,
+                });
                 ref_pos -= 1;
             }
         } else {
-            ops.push(EditOp::Delete { ref_index: ref_pos - 1 });
+            ops.push(EditOp::Delete {
+                ref_index: ref_pos - 1,
+            });
             ref_pos -= 1;
         }
     }
