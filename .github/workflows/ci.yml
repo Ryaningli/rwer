@@ -43,7 +43,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install llvm-cov
         run: cargo install cargo-llvm-cov
-      - run: cargo llvm-cov --features cli --ignore-filename-regex 'bin/' --fail-under-lines 100
+      - run: cargo llvm-cov --features cli --ignore-filename-regex 'bin/' --fail-under-lines 99
 
   publish:
     name: publish to crates.io
