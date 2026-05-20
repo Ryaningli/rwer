@@ -51,6 +51,9 @@
 /// Levenshtein alignment and edit operations.
 pub mod alignment;
 
+/// Fast edit distance using rapidfuzz's Myers bit-parallel algorithm.
+pub mod alignment_fast;
+
 /// WER, CER, MER, WIP, WIL metric computation.
 pub mod metrics;
 
