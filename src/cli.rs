@@ -25,6 +25,14 @@ pub struct Cli {
     /// Hypothesis text
     pub hypothesis: Option<String>,
 
+    /// Read reference text from file (use `-` for stdin)
+    #[arg(long)]
+    pub ref_file: Option<String>,
+
+    /// Read hypothesis text from file (use `-` for stdin)
+    #[arg(long)]
+    pub hyp_file: Option<String>,
+
     /// Use character-level evaluation (CER) instead of word-level (WER)
     #[arg(short, long)]
     pub character: bool,
@@ -83,6 +91,79 @@ pub fn build_pipeline(cli: &Cli) -> Option<Box<dyn Transform>> {
         None
     } else {
         Some(Box::new(Compose::new(transforms)))
+    }
+}
+
+/// Resolve reference and hypothesis texts from CLI arguments.
+///
+/// When `--ref-file` is set, the first positional arg (if any) is treated as
+/// hypothesis instead of reference. Similarly, when `--hyp-file` is set,
+/// the first positional arg is treated as reference.
+/// A file path of `-` reads from stdin.
+///
+/// # Errors
+///
+/// Returns an error if `--ref-file` or `--hyp-file` points to a file
+/// that cannot be read, or if stdin cannot be read when the path is `-`.
+#[cfg(feature = "cli")]
+pub fn resolve_inputs(cli: &Cli) -> Result<(String, String), String> {
+    resolve_inputs_with_reader(cli, &mut std::io::stdin().lock())
+}
+
+/// Resolve inputs using a custom reader for stdin paths (testable).
+fn resolve_inputs_with_reader<R: std::io::Read>(
+    cli: &Cli,
+    mut stdin: R,
+) -> Result<(String, String), String> {
+    let (reference, hypothesis) = match (&cli.ref_file, &cli.hyp_file) {
+        // Both from files — positional args ignored
+        (Some(ref_path), Some(hyp_path)) => (
+            read_text_from(ref_path, "reference", &mut stdin)?,
+            read_text_from(hyp_path, "hypothesis", &mut stdin)?,
+        ),
+        // Ref from file — positional args map to hypothesis
+        (Some(ref_path), None) => (
+            read_text_from(ref_path, "reference", &mut stdin)?,
+            cli.hypothesis
+                .as_deref()
+                .or(cli.reference.as_deref())
+                .unwrap_or("")
+                .to_string(),
+        ),
+        // Hyp from file — positional args map to reference
+        (None, Some(hyp_path)) => (
+            cli.reference
+                .as_deref()
+                .or(cli.hypothesis.as_deref())
+                .unwrap_or("")
+                .to_string(),
+            read_text_from(hyp_path, "hypothesis", &mut stdin)?,
+        ),
+        // No file flags — use positional args directly
+        (None, None) => (
+            cli.reference.clone().unwrap_or_default(),
+            cli.hypothesis.clone().unwrap_or_default(),
+        ),
+    };
+
+    Ok((reference, hypothesis))
+}
+
+/// Read text from a file path or a reader (when path is `-`).
+fn read_text_from<R: std::io::Read>(
+    path: &str,
+    label: &str,
+    stdin: &mut R,
+) -> Result<String, String> {
+    if path == "-" {
+        let mut buf = String::new();
+        stdin
+            .read_to_string(&mut buf)
+            .map_err(|e| format!("failed to read {label} from stdin: {e}"))?;
+        Ok(buf)
+    } else {
+        std::fs::read_to_string(path)
+            .map_err(|e| format!("failed to read {label} file '{path}': {e}"))
     }
 }
 
@@ -150,6 +231,8 @@ mod tests {
         Cli {
             reference: Some(ref_text.to_string()),
             hypothesis: Some(hyp_text.to_string()),
+            ref_file: None,
+            hyp_file: None,
             character: false,
             alignment: false,
             all: false,
@@ -393,6 +476,8 @@ mod tests {
             let cli = Cli {
                 reference: Some("今天天氣真好".to_string()),
                 hypothesis: Some("今天天气很棒".to_string()),
+                ref_file: None,
+                hyp_file: None,
                 character: false,
                 alignment: false,
                 all: false,
@@ -420,5 +505,184 @@ mod tests {
             let wer_val: f64 = result.trim().parse().unwrap();
             assert!(wer_val > 0.0);
         }
+    }
+
+    // --- resolve_inputs tests ---
+
+    #[test]
+    fn resolve_inputs_positional_only() {
+        let cli = cli_with_ref_hyp("hello", "world");
+        let (r, h) = resolve_inputs(&cli).unwrap();
+        assert_eq!(r, "hello");
+        assert_eq!(h, "world");
+    }
+
+    #[test]
+    fn resolve_inputs_ref_file_overrides_positional() {
+        let dir = std::env::temp_dir().join("rwer_test_resolve_ref");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("ref.txt");
+        std::fs::write(&path, "file reference content").unwrap();
+
+        let mut cli = cli_with_ref_hyp("positional ref", "positional hyp");
+        cli.ref_file = Some(path.to_string_lossy().to_string());
+        let (r, h) = resolve_inputs(&cli).unwrap();
+        assert_eq!(r, "file reference content");
+        assert_eq!(h, "positional hyp");
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn resolve_inputs_hyp_file_overrides_positional() {
+        let dir = std::env::temp_dir().join("rwer_test_resolve_hyp");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("hyp.txt");
+        std::fs::write(&path, "file hypothesis content").unwrap();
+
+        let mut cli = cli_with_ref_hyp("positional ref", "positional hyp");
+        cli.hyp_file = Some(path.to_string_lossy().to_string());
+        let (r, h) = resolve_inputs(&cli).unwrap();
+        assert_eq!(r, "positional ref");
+        assert_eq!(h, "file hypothesis content");
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn resolve_inputs_both_files() {
+        let dir = std::env::temp_dir().join("rwer_test_resolve_both");
+        std::fs::create_dir_all(&dir).unwrap();
+        let ref_path = dir.join("ref.txt");
+        let hyp_path = dir.join("hyp.txt");
+        std::fs::write(&ref_path, "file ref").unwrap();
+        std::fs::write(&hyp_path, "file hyp").unwrap();
+
+        let mut cli = cli_with_ref_hyp("pos ref", "pos hyp");
+        cli.ref_file = Some(ref_path.to_string_lossy().to_string());
+        cli.hyp_file = Some(hyp_path.to_string_lossy().to_string());
+        let (r, h) = resolve_inputs(&cli).unwrap();
+        assert_eq!(r, "file ref");
+        assert_eq!(h, "file hyp");
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn resolve_inputs_missing_file() {
+        let mut cli = cli_with_ref_hyp("ref", "hyp");
+        cli.ref_file = Some("/nonexistent/path/file.txt".to_string());
+        let result = resolve_inputs(&cli);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("failed to read reference file")
+        );
+    }
+
+    #[test]
+    fn resolve_inputs_empty_when_no_positional_no_file() {
+        let cli = Cli {
+            reference: None,
+            hypothesis: None,
+            ref_file: None,
+            hyp_file: None,
+            character: false,
+            alignment: false,
+            all: false,
+            lowercase: false,
+            remove_punctuation: false,
+            normalize_spaces: false,
+            #[cfg(feature = "chinese-variant")]
+            simplified: false,
+        };
+        let (r, h) = resolve_inputs(&cli).unwrap();
+        assert_eq!(r, "");
+        assert_eq!(h, "");
+    }
+
+    #[test]
+    fn resolve_inputs_ref_file_remaps_positional_to_hypothesis() {
+        let dir = std::env::temp_dir().join("rwer_test_remap_ref");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("ref.txt");
+        std::fs::write(&path, "file ref").unwrap();
+
+        // Only one positional arg — should be treated as hypothesis
+        let mut cli = cli_with_ref_hyp("positional text", "positional hyp");
+        cli.ref_file = Some(path.to_string_lossy().to_string());
+        let (r, h) = resolve_inputs(&cli).unwrap();
+        assert_eq!(r, "file ref");
+        assert_eq!(h, "positional hyp");
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn resolve_inputs_hyp_file_remaps_positional_to_reference() {
+        let dir = std::env::temp_dir().join("rwer_test_remap_hyp");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("hyp.txt");
+        std::fs::write(&path, "file hyp").unwrap();
+
+        let mut cli = cli_with_ref_hyp("positional ref", "positional text");
+        cli.hyp_file = Some(path.to_string_lossy().to_string());
+        let (r, h) = resolve_inputs(&cli).unwrap();
+        assert_eq!(r, "positional ref");
+        assert_eq!(h, "file hyp");
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn resolve_inputs_stdin_hyp() {
+        let dir = std::env::temp_dir().join("rwer_test_stdin_hyp");
+        std::fs::create_dir_all(&dir).unwrap();
+        let ref_path = dir.join("ref.txt");
+        std::fs::write(&ref_path, "file ref").unwrap();
+
+        let mut cli = cli_with_ref_hyp("pos ref", "pos hyp");
+        cli.ref_file = Some(ref_path.to_string_lossy().to_string());
+        cli.hyp_file = Some("-".to_string());
+
+        let stdin = std::io::Cursor::new(b"stdin hypothesis content");
+        let (r, h) = resolve_inputs_with_reader(&cli, stdin).unwrap();
+        assert_eq!(r, "file ref");
+        assert_eq!(h, "stdin hypothesis content");
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn resolve_inputs_stdin_ref() {
+        let dir = std::env::temp_dir().join("rwer_test_stdin_ref");
+        std::fs::create_dir_all(&dir).unwrap();
+        let hyp_path = dir.join("hyp.txt");
+        std::fs::write(&hyp_path, "file hyp").unwrap();
+
+        let mut cli = cli_with_ref_hyp("pos ref", "pos hyp");
+        cli.ref_file = Some("-".to_string());
+        cli.hyp_file = Some(hyp_path.to_string_lossy().to_string());
+
+        let stdin = std::io::Cursor::new(b"stdin reference content");
+        let (r, h) = resolve_inputs_with_reader(&cli, stdin).unwrap();
+        assert_eq!(r, "stdin reference content");
+        assert_eq!(h, "file hyp");
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn resolve_inputs_both_stdin() {
+        let mut cli = cli_with_ref_hyp("pos ref", "pos hyp");
+        cli.ref_file = Some("-".to_string());
+        cli.hyp_file = Some("-".to_string());
+
+        // stdin is consumed by the first read, second gets empty
+        let stdin = std::io::Cursor::new(b"stdin ref content");
+        let (r, h) = resolve_inputs_with_reader(&cli, stdin).unwrap();
+        assert_eq!(r, "stdin ref content");
+        assert_eq!(h, "");
     }
 }

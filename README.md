@@ -116,8 +116,18 @@ rwer = { version = "0.1", features = ["cli"] }
 # Install
 cargo install rwer --all-features
 
-# Basic WER
+# Basic WER with text arguments
 rwer "the cat sat on the mat" "the cat sat on a mat"
+
+# Read from files
+rwer --ref-file ref.txt --hyp-file hyp.txt
+
+# Mix text and file input
+rwer --ref-file ref.txt "the cat sat on a mat"
+rwer "the cat sat on the mat" --hyp-file hyp.txt
+
+# Read from stdin
+echo "the cat sat on a mat" | rwer --ref-file ref.txt --hyp-file -
 
 # CER mode
 rwer --character "hello" "helo"

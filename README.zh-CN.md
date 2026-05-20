@@ -115,8 +115,18 @@ rwer = { version = "0.1", features = ["cli"] }
 # 安装
 cargo install rwer --all-features
 
-# 基本 WER
+# 基本文本参数模式
 rwer "the cat sat on the mat" "the cat sat on a mat"
+
+# 从文件读取
+rwer --ref-file ref.txt --hyp-file hyp.txt
+
+# 混合文本和文件输入
+rwer --ref-file ref.txt "the cat sat on a mat"
+rwer "the cat sat on the mat" --hyp-file hyp.txt
+
+# 从标准输入读取
+echo "the cat sat on a mat" | rwer --ref-file ref.txt --hyp-file -
 
 # CER 模式
 rwer --character "hello" "helo"
