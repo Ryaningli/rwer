@@ -154,59 +154,7 @@ pub fn align<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]) -> Ve
         return (0..m).map(|i| EditOp::Equal { index: i }).collect();
     }
 
-    // Use full WF when banded approach won't save work
-    if dist >= m + n {
-        return align_full(reference, hypothesis);
-    }
-
     align_banded(reference, hypothesis, dist)
-}
-
-/// Full Wagner-Fischer alignment (fallback for edge cases).
-fn align_full<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]) -> Vec<EditOp> {
-    let m = reference.len();
-    let n = hypothesis.len();
-
-    let mut dist = vec![vec![0usize; n + 1]; m + 1];
-    for (i, row) in dist.iter_mut().enumerate().take(m + 1) {
-        row[0] = i;
-    }
-    for (j, cell) in dist[0].iter_mut().enumerate().take(n + 1) {
-        *cell = j;
-    }
-    for i in 1..=m {
-        for j in 1..=n {
-            let cost = usize::from(reference[i - 1] != hypothesis[j - 1]);
-            dist[i][j] = (dist[i - 1][j] + 1)
-                .min(dist[i][j - 1] + 1)
-                .min(dist[i - 1][j - 1] + cost);
-        }
-    }
-
-    let mut ops = Vec::with_capacity(m + n);
-    let (mut i, mut j) = (m, n);
-    while i > 0 || j > 0 {
-        if i > 0 && j > 0 && reference[i - 1] == hypothesis[j - 1] {
-            ops.push(EditOp::Equal { index: i - 1 });
-            i -= 1;
-            j -= 1;
-        } else if i > 0 && j > 0 && dist[i][j] == dist[i - 1][j - 1] + 1 {
-            ops.push(EditOp::Substitute {
-                ref_index: i - 1,
-                hyp_index: j - 1,
-            });
-            i -= 1;
-            j -= 1;
-        } else if j > 0 && dist[i][j] == dist[i][j - 1] + 1 {
-            ops.push(EditOp::Insert { hyp_index: j - 1 });
-            j -= 1;
-        } else {
-            ops.push(EditOp::Delete { ref_index: i - 1 });
-            i -= 1;
-        }
-    }
-    ops.reverse();
-    ops
 }
 
 /// Banded Wagner-Fischer alignment.
@@ -269,11 +217,10 @@ fn build_banded_dp<S: AsRef<str> + PartialEq>(
                 continue;
             }
 
-            let diag = if hyp_idx > prev_lo && hyp_idx - 1 <= prev_hi {
-                Some(rows[ref_idx - 1][hyp_idx - 1 - prev_lo])
-            } else {
-                None
-            };
+            // SAFETY: Diagonal neighbor is always within the band when band = dist,
+            // since the band width equals the maximum possible off-diagonal
+            // displacement in an optimal alignment.
+            let diag = rows[ref_idx - 1][hyp_idx - 1 - prev_lo];
 
             let up = if hyp_idx >= prev_lo && hyp_idx <= prev_hi {
                 Some(rows[ref_idx - 1][hyp_idx - prev_lo] + 1)
@@ -288,12 +235,12 @@ fn build_banded_dp<S: AsRef<str> + PartialEq>(
             };
 
             let cost = usize::from(reference[ref_idx - 1] != hypothesis[hyp_idx - 1]);
-            let diag_val = diag.map(|d| d + cost);
+            let diag_val = diag + cost;
 
             row[local_j] = up
                 .into_iter()
                 .chain(left)
-                .chain(diag_val)
+                .chain(Some(diag_val))
                 .min()
                 .unwrap_or(ref_idx + hyp_idx);
         }
@@ -319,17 +266,15 @@ fn backtrack_banded<S: AsRef<str> + PartialEq>(
 
     while ref_pos > 0 || hyp_pos > 0 {
         let lo_val = lo(ref_pos);
-        let cur_val = if hyp_pos >= lo_val && hyp_pos <= hi(ref_pos) {
-            Some(rows[ref_pos][hyp_pos - lo_val])
-        } else {
-            None
-        };
+        // The optimal alignment path is always within the band when band = dist,
+        // so hyp_pos is guaranteed to be within [lo_val, hi(ref_pos)].
+        let cv = rows[ref_pos][hyp_pos - lo_val];
 
         if ref_pos > 0 && hyp_pos > 0 && reference[ref_pos - 1] == hypothesis[hyp_pos - 1] {
             ops.push(EditOp::Equal { index: ref_pos - 1 });
             ref_pos -= 1;
             hyp_pos -= 1;
-        } else if let Some(cv) = cur_val {
+        } else {
             let prev_lo = lo(ref_pos.saturating_sub(1));
             let prev_hi = if ref_pos > 0 { hi(ref_pos - 1) } else { 0 };
 
@@ -358,11 +303,6 @@ fn backtrack_banded<S: AsRef<str> + PartialEq>(
                 });
                 ref_pos -= 1;
             }
-        } else {
-            ops.push(EditOp::Delete {
-                ref_index: ref_pos - 1,
-            });
-            ref_pos -= 1;
         }
     }
     ops.reverse();
@@ -683,5 +623,101 @@ mod tests {
         let counts = count_operations(&ops);
         assert_eq!(counts.hits, 99);
         assert_eq!(counts.substitutions, 1);
+    }
+
+    #[test]
+    fn align_banded_many_deletions() {
+        // ref much longer than hyp — exercises deletion-heavy banded path
+        // and the diag=None / cur_val=None branches at band edges
+        let ref_tokens: Vec<String> = (0..50).map(|i| format!("w{i}")).collect();
+        let hyp_tokens: Vec<String> = (0..25).map(|i| format!("w{i}")).collect();
+        let ops = align(&ref_tokens, &hyp_tokens);
+        let counts = count_operations(&ops);
+        assert_eq!(counts.hits, 25);
+        assert_eq!(counts.deletions, 25);
+        assert_eq!(counts.insertions, 0);
+        assert_eq!(counts.substitutions, 0);
+    }
+
+    #[test]
+    fn align_banded_many_insertions() {
+        // hyp much longer than ref — exercises insertion-heavy banded path
+        let ref_tokens: Vec<String> = (0..25).map(|i| format!("w{i}")).collect();
+        let hyp_tokens: Vec<String> = (0..50).map(|i| format!("w{i}")).collect();
+        let ops = align(&ref_tokens, &hyp_tokens);
+        let counts = count_operations(&ops);
+        assert_eq!(counts.hits, 25);
+        assert_eq!(counts.insertions, 25);
+        assert_eq!(counts.deletions, 0);
+        assert_eq!(counts.substitutions, 0);
+    }
+
+    #[test]
+    fn align_banded_deletions_at_start() {
+        // Deletions at the start of reference
+        let ref_tokens: Vec<&str> = vec!["a", "b", "c", "d"];
+        let hyp_tokens: Vec<&str> = vec!["c", "d"];
+        let ops = align(&ref_tokens, &hyp_tokens);
+        let counts = count_operations(&ops);
+        assert_eq!(counts.hits, 2);
+        assert_eq!(counts.deletions, 2);
+    }
+
+    #[test]
+    fn align_banded_insertions_at_end() {
+        // Insertions at the end of hypothesis
+        let ref_tokens: Vec<&str> = vec!["a", "b"];
+        let hyp_tokens: Vec<&str> = vec!["a", "b", "c", "d"];
+        let ops = align(&ref_tokens, &hyp_tokens);
+        let counts = count_operations(&ops);
+        assert_eq!(counts.hits, 2);
+        assert_eq!(counts.insertions, 2);
+    }
+
+    #[test]
+    fn align_banded_long_with_offset_substitution() {
+        // Substitution far from diagonal — exercises band boundary branches
+        let ref_tokens: Vec<String> = (0..200)
+            .map(|i| {
+                if i == 180 {
+                    "wrong".to_string()
+                } else {
+                    format!("w{i}")
+                }
+            })
+            .collect();
+        let hyp_tokens: Vec<String> = (0..200).map(|i| format!("w{i}")).collect();
+        let ops = align(&ref_tokens, &hyp_tokens);
+        let counts = count_operations(&ops);
+        assert_eq!(counts.hits, 199);
+        assert_eq!(counts.substitutions, 1);
+    }
+
+    #[test]
+    fn align_banded_mixed_operations_long() {
+        // Long sequence with mixed ops to exercise all banded branches
+        let ref_tokens: Vec<String> = (0..200)
+            .map(|i| {
+                if i == 100 {
+                    "changed".to_string()
+                } else {
+                    format!("w{i}")
+                }
+            })
+            .collect();
+        let mut hyp_tokens: Vec<String> = (0..200).map(|i| format!("w{i}")).collect();
+        hyp_tokens.insert(150, "extra".to_string());
+        let ops = align(&ref_tokens, &hyp_tokens);
+        let counts = count_operations(&ops);
+        assert_eq!(counts.substitutions, 1);
+        assert_eq!(counts.insertions, 1);
+        assert_eq!(counts.hits, 199);
+    }
+
+    #[test]
+    fn edit_distance_with_mixed_operations() {
+        let ref_tokens = vec!["a", "b", "c", "d", "e"];
+        let hyp_tokens = vec!["a", "x", "c", "e"];
+        assert_eq!(edit_distance(&ref_tokens, &hyp_tokens), 2);
     }
 }
