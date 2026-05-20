@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use rwer::{cer, process_words, wer};
+use rwer::{cer, process_chars, process_words, wer};
 use std::hint::black_box;
 
 fn bench_wer(c: &mut Criterion) {
@@ -29,8 +29,38 @@ fn bench_cer(c: &mut Criterion) {
     let long_ref: String = "今天天气真好我们可以出去玩".repeat(200);
     let long_hyp: String = "今天天气真好人我们可以出去玩".repeat(200);
 
-    c.bench_function("cer_long", |b| {
+    c.bench_function("cer_long_cjk", |b| {
         b.iter(|| cer(black_box(&long_ref), black_box(&long_hyp)))
+    });
+
+    let long_latin_ref = "the cat sat on the mat and the dog ran in the park ".repeat(100);
+    let long_latin_hyp = "the cat sat on a mat and the dog ran in the park ".repeat(100);
+
+    c.bench_function("cer_long_latin", |b| {
+        b.iter(|| cer(black_box(&long_latin_ref), black_box(&long_latin_hyp)))
+    });
+
+    let emoji_ref = "👨‍👩‍👧你好世界👋🌟".repeat(100);
+    let emoji_hyp = "👨‍👩‍👦你好世界👋⭐".repeat(100);
+
+    c.bench_function("cer_emoji_fallback", |b| {
+        b.iter(|| cer(black_box(&emoji_ref), black_box(&emoji_hyp)))
+    });
+}
+
+fn bench_process_chars(c: &mut Criterion) {
+    let reference = "hello world this is a test";
+    let hypothesis = "helo world this is a test";
+
+    c.bench_function("process_chars_short", |b| {
+        b.iter(|| process_chars(black_box(reference), black_box(hypothesis)))
+    });
+
+    let long_ref: String = "今天天气真好我们可以出去玩".repeat(200);
+    let long_hyp: String = "今天天气真好人我们可以出去玩".repeat(200);
+
+    c.bench_function("process_chars_long_cjk", |b| {
+        b.iter(|| process_chars(black_box(&long_ref), black_box(&long_hyp)))
     });
 }
 
@@ -96,6 +126,7 @@ criterion_group!(
     benches,
     bench_wer,
     bench_cer,
+    bench_process_chars,
     bench_process_words,
     bench_rapidfuzz_char_distance,
     bench_scaling,
