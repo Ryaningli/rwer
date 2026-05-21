@@ -1,7 +1,7 @@
 use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::alignment::{align, count_operations, edit_distance, rapidfuzz_char_distance};
+use crate::alignment::{align, count_operations, rapidfuzz_char_distance, rapidfuzz_word_distance};
 use crate::output::{AlignmentOutput, SplitKind, build_output};
 
 #[allow(clippy::cast_precision_loss)]
@@ -70,13 +70,13 @@ pub fn wer_sentences(ref_sentences: &[&str], hyp_sentences: &[&str]) -> f64 {
     compute_wer_fast(&all_ref, &all_hyp)
 }
 
-/// Fast distance-only WER computation.
+/// Fast distance-only WER computation using rapidfuzz Myers bit-parallel algorithm.
 fn compute_wer_fast<S: AsRef<str> + PartialEq>(reference: &[S], hypothesis: &[S]) -> f64 {
     let n = reference.len();
     if n == 0 {
         return 0.0;
     }
-    let dist = edit_distance(reference, hypothesis);
+    let dist = rapidfuzz_word_distance(reference, hypothesis);
     to_f64(dist) / to_f64(n)
 }
 
