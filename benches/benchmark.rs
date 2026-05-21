@@ -122,6 +122,28 @@ fn bench_scaling(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_wer_scaling(c: &mut Criterion) {
+    let mut group = c.benchmark_group("wer_scaling");
+    for size in [100, 500, 1000, 5000, 10000] {
+        let ref_text: String = "the cat sat on the mat and the dog ran in the park "
+            .split_whitespace()
+            .cycle()
+            .take(size)
+            .collect::<Vec<_>>()
+            .join(" ");
+        let hyp_text: String = ref_text
+            .split_whitespace()
+            .enumerate()
+            .map(|(i, w)| if i % 5 == 0 { "changed" } else { w })
+            .collect::<Vec<_>>()
+            .join(" ");
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, _| {
+            b.iter(|| wer(black_box(&ref_text), black_box(&hyp_text)))
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_wer,
@@ -130,5 +152,6 @@ criterion_group!(
     bench_process_words,
     bench_rapidfuzz_char_distance,
     bench_scaling,
+    bench_wer_scaling,
 );
 criterion_main!(benches);
