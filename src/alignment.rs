@@ -129,6 +129,54 @@ pub(crate) fn rapidfuzz_char_distance(
     rapidfuzz::distance::levenshtein::distance(v1.iter().copied(), v2.iter().copied())
 }
 
+/// Compute Levenshtein distance between two word sequences using rapidfuzz.
+///
+/// Maps words to `u64` IDs via a `HashMap`, then uses Myers bit-parallel
+/// algorithm for O([K/64]×M) complexity where K is the edit distance
+/// and M is the shorter sequence length.
+#[allow(dead_code)]
+pub(crate) fn rapidfuzz_word_distance<S: AsRef<str> + PartialEq>(
+    reference: &[S],
+    hypothesis: &[S],
+) -> usize {
+    let m = reference.len();
+    let n = hypothesis.len();
+
+    if m == 0 {
+        return n;
+    }
+    if n == 0 {
+        return m;
+    }
+
+    let mut word_to_id = std::collections::HashMap::new();
+    let mut next_id: u64 = 0;
+
+    let ref_ids: Vec<u64> = reference
+        .iter()
+        .map(|w| {
+            *word_to_id.entry(w.as_ref()).or_insert_with(|| {
+                let id = next_id;
+                next_id += 1;
+                id
+            })
+        })
+        .collect();
+
+    let hyp_ids: Vec<u64> = hypothesis
+        .iter()
+        .map(|w| {
+            *word_to_id.entry(w.as_ref()).or_insert_with(|| {
+                let id = next_id;
+                next_id += 1;
+                id
+            })
+        })
+        .collect();
+
+    rapidfuzz::distance::levenshtein::distance(ref_ids.iter().copied(), hyp_ids.iter().copied())
+}
+
 /// Compute the Levenshtein alignment between two token sequences.
 ///
 /// Uses a two-phase approach for performance:
@@ -774,5 +822,55 @@ mod tests {
     #[test]
     fn rapidfuzz_char_distance_deletion() {
         assert_eq!(rapidfuzz_char_distance("abc".chars(), "ac".chars()), 1);
+    }
+
+    // --- rapidfuzz_word_distance tests ---
+
+    #[test]
+    fn rapidfuzz_word_distance_identical() {
+        let words = vec!["hello", "world"];
+        assert_eq!(rapidfuzz_word_distance(&words, &words), 0);
+    }
+
+    #[test]
+    fn rapidfuzz_word_distance_substitution() {
+        let ref_words = vec!["hello", "world"];
+        let hyp_words = vec!["hello", "earth"];
+        assert_eq!(rapidfuzz_word_distance(&ref_words, &hyp_words), 1);
+    }
+
+    #[test]
+    fn rapidfuzz_word_distance_empty() {
+        assert_eq!(rapidfuzz_word_distance::<&str>(&[], &[]), 0);
+        assert_eq!(rapidfuzz_word_distance::<&str>(&[], &["a"]), 1);
+        assert_eq!(rapidfuzz_word_distance::<&str>(&["a"], &[]), 1);
+    }
+
+    #[test]
+    fn rapidfuzz_word_distance_mixed_operations() {
+        let ref_words = vec!["a", "b", "c", "d", "e"];
+        let hyp_words = vec!["a", "x", "c", "e"];
+        assert_eq!(rapidfuzz_word_distance(&ref_words, &hyp_words), 2);
+    }
+
+    #[test]
+    fn rapidfuzz_word_distance_matches_edit_distance() {
+        let ref_words: Vec<String> = (0..100).map(|i| format!("word{i}")).collect();
+        let mut hyp_words = ref_words.clone();
+        hyp_words[10] = "changed".to_string();
+        hyp_words.remove(50);
+        hyp_words.insert(75, "extra".to_string());
+        assert_eq!(
+            edit_distance(&ref_words, &hyp_words),
+            rapidfuzz_word_distance(&ref_words, &hyp_words)
+        );
+    }
+
+    #[test]
+    fn rapidfuzz_word_distance_large() {
+        let ref_words: Vec<String> = (0..1000).map(|i| format!("w{i}")).collect();
+        let mut hyp_words = ref_words.clone();
+        hyp_words[500] = "changed".to_string();
+        assert_eq!(rapidfuzz_word_distance(&ref_words, &hyp_words), 1);
     }
 }
